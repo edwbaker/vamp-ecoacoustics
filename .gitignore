@@ -1,1 +1,12 @@
 *.R
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.wasm
+*.js
+*.def
+*.exp
+*.lib
+*.a
