@@ -1,0 +1,61 @@
+name: Build Vamp Plugins
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-native:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: vamp-aci.so
+          - os: macos-latest
+            platform: macos
+            artifact_name: vamp-aci.dylib
+          - os: windows-latest
+            platform: windows
+            artifact_name: vamp-aci.dll
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup MinGW (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: egor-tensin/setup-mingw@v2
+      with:
+        platform: x64
+
+    - name: Build
+      run: make PLATFORM=${{ matrix.platform }}
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.platform }}-build
+        path: ${{ matrix.artifact_name }}
+
+  build-wasm:
+    name: Build WASM
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Emscripten
+      uses: mymindstorm/setup-emsdk@v12
+    
+    - name: Build
+      run: make PLATFORM=wasm
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: wasm-build
+        path: vamp-aci.wasm
