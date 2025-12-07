@@ -1,7 +1,7 @@
 # Makefile for Ecoacoustic Vamp Plugins
 # Supports: Linux, macOS, Windows (MinGW), WASM (Emscripten)
 
-PLUGIN_NAME = vamp-aci
+PLUGIN_NAME = vamp-ecoacoustics
 
 # Default to host OS detection
 ifdef OS

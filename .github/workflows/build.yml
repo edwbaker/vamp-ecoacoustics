@@ -18,13 +18,13 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux
-            artifact_name: vamp-aci.so
+            artifact_name: vamp-ecoacoustics.so
           - os: macos-latest
             platform: macos
-            artifact_name: vamp-aci.dylib
+            artifact_name: vamp-ecoacoustics.dylib
           - os: windows-latest
             platform: windows
-            artifact_name: vamp-aci.dll
+            artifact_name: vamp-ecoacoustics.dll
 
     steps:
     - uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: wasm-build
-        path: vamp-aci.wasm
+        path: vamp-ecoacoustics.wasm
 
   release:
     name: Create Release
