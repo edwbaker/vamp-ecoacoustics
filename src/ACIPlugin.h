@@ -1,13 +1,13 @@
-// ACIPlugin.h - Acoustic Complexity Index
-// Uses Vamp SDK FFT implementation
-
 #ifndef _ACI_PLUGIN_H_
 #define _ACI_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
 #include "vamp-sdk/FFT.h"
+#include <vector>
+#include <string>
 
 using std::string;
+using std::vector;
 
 class ACIPlugin : public Vamp::Plugin
 {
@@ -41,29 +41,36 @@ public:
     bool initialise(size_t channels, size_t stepSize, size_t blockSize);
     void reset();
 
-    FeatureSet process(const float *const *inputBuffers,
-                       Vamp::RealTime timestamp);
+    FeatureSet process(const float *const *inputBuffers, Vamp::RealTime timestamp);
 
     FeatureSet getRemainingFeatures();
 
 protected:
-    // Parameters matching seewave::ACI
-    float m_minFreq;     // flim[1] in kHz
-    float m_maxFreq;     // flim[2] in kHz
-    int m_nbWindows;     // number of temporal windows
-    
-    // Internal state
+    // Parameters
+    float m_minFreq;
+    float m_maxFreq;
+    int m_nbWindows;
+
+    // Internal
+    size_t m_channels;
     size_t m_blockSize;
     size_t m_stepSize;
-    size_t m_channels;
-    
+    int m_frameCount;
+
     // FFT
     Vamp::FFTReal *m_fft;
-    std::vector<double> m_fftOutput; // Buffer for FFT output
-    
-    // Storage for spectral data
-    std::vector<std::vector<float>> m_spectralData;  // freq x time
-    size_t m_frameCount;
+    vector<double> m_fftOut; // Buffer for FFT output (interleaved complex)
+
+    // Batch processing
+    size_t m_batchSize;
+    vector<double> m_inputBuffer; // Flattened buffer for multiple frames
+    vector<double> m_window; // Pre-computed window
+    void processBatch(size_t numFrames);
+
+    // Data storage for ACI calculation
+    // Flattened vector storing magnitudes: Frame 0 [Bin0...BinN], Frame 1 [Bin0...BinN]
+    vector<float> m_spectralData;
+    size_t m_numBins; // Number of bins per frame
 };
 
 #endif
