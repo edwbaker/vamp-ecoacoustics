@@ -3,6 +3,8 @@ name: Build Vamp Plugins
 on:
   push:
     branches: [ main, master ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, master ]
 
@@ -61,3 +63,41 @@ jobs:
       with:
         name: wasm-build
         path: vamp-aci.wasm
+
+  release:
+    name: Create Release
+    needs: [build-native, build-wasm]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: release-assets
+
+      - name: Download macOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: release-assets
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: release-assets
+
+      - name: Download WASM Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-build
+          path: release-assets
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-assets/*
+
