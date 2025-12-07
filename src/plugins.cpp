@@ -11,10 +11,12 @@
 #include "vamp-sdk/PluginAdapter.h"
 
 #include "ACIPlugin.h"
+#include "ACIaccPlugin.h"
 #include "AmplitudeIndexPlugin.h"
 #include "TemporalEntropyPlugin.h"
 
 static Vamp::PluginAdapter<ACIPlugin> aciAdapter;
+static Vamp::PluginAdapter<ACIaccPlugin> aciAccAdapter;
 static Vamp::PluginAdapter<AmplitudeIndexPlugin> amplitudeIndexAdapter;
 static Vamp::PluginAdapter<TemporalEntropyPlugin> temporalEntropyAdapter;
 
@@ -27,6 +29,7 @@ const VampPluginDescriptor *vampGetPluginDescriptor(unsigned int version,
     case  0: return aciAdapter.getDescriptor();
     case  1: return amplitudeIndexAdapter.getDescriptor();
     case  2: return temporalEntropyAdapter.getDescriptor();
+    case  3: return aciAccAdapter.getDescriptor();
     default: return 0;
     }
 }

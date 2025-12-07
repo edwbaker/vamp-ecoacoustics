@@ -35,7 +35,7 @@ endif
 CXX = g++
 CXXFLAGS = -std=c++11 -O3 -Wall -fPIC -I. -Isrc -Iext
 
-SOURCES = src/ACIPlugin.cpp src/AmplitudeIndexPlugin.cpp src/TemporalEntropyPlugin.cpp src/FFT.cpp src/plugins.cpp src/PluginAdapter.cpp src/RealTime.cpp
+SOURCES = src/ACIPlugin.cpp src/ACIaccPlugin.cpp src/AmplitudeIndexPlugin.cpp src/TemporalEntropyPlugin.cpp src/FFT.cpp src/plugins.cpp src/PluginAdapter.cpp src/RealTime.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 ifeq ($(PLATFORM),macos)
