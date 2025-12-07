@@ -35,11 +35,14 @@
 */
 
 #include <vamp-sdk/FFT.h>
+#include "pocketfft_hdronly.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <vector>
+#include <complex>
 
 #if ( VAMP_SDK_MAJOR_VERSION != 2 || VAMP_SDK_MINOR_VERSION != 10 )
 #error Unexpected version of Vamp SDK header included
@@ -47,38 +50,29 @@
 
 _VAMP_SDK_PLUGSPACE_BEGIN(FFT.cpp)
 
-#include "FFTimpl.cpp"
-
 namespace Vamp {
-
-using namespace Kiss;
 
 void
 FFT::forward(unsigned int un,
 	     const double *ri, const double *ii,
 	     double *ro, double *io)
 {
-    int n(un);
-    vamp_kiss_fft_cfg c = vamp_kiss_fft_alloc(n, false, 0, 0);
-    vamp_kiss_fft_cpx *in = new vamp_kiss_fft_cpx[n];
-    vamp_kiss_fft_cpx *out = new vamp_kiss_fft_cpx[n];
-    for (int i = 0; i < n; ++i) {
-        in[i].r = ri[i];
-        in[i].i = 0;
+    size_t n = un;
+    std::vector<std::complex<double>> data(n);
+    for (size_t i = 0; i < n; ++i) {
+        data[i] = std::complex<double>(ri[i], ii ? ii[i] : 0.0);
     }
-    if (ii) {
-        for (int i = 0; i < n; ++i) {
-            in[i].i = ii[i];
-        }
+
+    pocketfft::shape_t shape = {n};
+    pocketfft::stride_t stride = {sizeof(std::complex<double>)};
+    pocketfft::shape_t axes = {0};
+    
+    pocketfft::c2c(shape, stride, stride, axes, true, data.data(), data.data(), 1.0);
+
+    for (size_t i = 0; i < n; ++i) {
+        ro[i] = data[i].real();
+        io[i] = data[i].imag();
     }
-    vamp_kiss_fft(c, in, out);
-    for (int i = 0; i < n; ++i) {
-        ro[i] = out[i].r;
-        io[i] = out[i].i;
-    }
-    vamp_kiss_fft_free(c);
-    delete[] in;
-    delete[] out;
 }
 
 void
@@ -86,78 +80,72 @@ FFT::inverse(unsigned int un,
 	     const double *ri, const double *ii,
 	     double *ro, double *io)
 {
-    int n(un);
-    vamp_kiss_fft_cfg c = vamp_kiss_fft_alloc(n, true, 0, 0);
-    vamp_kiss_fft_cpx *in = new vamp_kiss_fft_cpx[n];
-    vamp_kiss_fft_cpx *out = new vamp_kiss_fft_cpx[n];
-    for (int i = 0; i < n; ++i) {
-        in[i].r = ri[i];
-        in[i].i = 0;
+    size_t n = un;
+    std::vector<std::complex<double>> data(n);
+    for (size_t i = 0; i < n; ++i) {
+        data[i] = std::complex<double>(ri[i], ii ? ii[i] : 0.0);
     }
-    if (ii) {
-        for (int i = 0; i < n; ++i) {
-            in[i].i = ii[i];
-        }
-    }
-    vamp_kiss_fft(c, in, out);
+
+    pocketfft::shape_t shape = {n};
+    pocketfft::stride_t stride = {sizeof(std::complex<double>)};
+    pocketfft::shape_t axes = {0};
+    
+    pocketfft::c2c(shape, stride, stride, axes, false, data.data(), data.data(), 1.0);
+
     double scale = 1.0 / double(n);
-    for (int i = 0; i < n; ++i) {
-        ro[i] = out[i].r * scale;
-        io[i] = out[i].i * scale;
+    for (size_t i = 0; i < n; ++i) {
+        ro[i] = data[i].real() * scale;
+        io[i] = data[i].imag() * scale;
     }
-    vamp_kiss_fft_free(c);
-    delete[] in;
-    delete[] out;
 }
 
 class FFTComplex::D
 {
 public:
-    D(int n) :
-        m_n(n),
-        m_fconf(vamp_kiss_fft_alloc(n, false, 0, 0)),
-        m_iconf(vamp_kiss_fft_alloc(n, true, 0, 0)),
-        m_ci(new vamp_kiss_fft_cpx[m_n]),
-        m_co(new vamp_kiss_fft_cpx[m_n]) { }
-
-    ~D() {
-        vamp_kiss_fftr_free(m_fconf);
-        vamp_kiss_fftr_free(m_iconf);
-        delete[] m_ci;
-        delete[] m_co;
-    }
+    D(int n) : m_n(n) { }
+    ~D() { }
 
     void forward(const double *ci, double *co) {
-        for (int i = 0; i < m_n; ++i) {
-            m_ci[i].r = ci[i*2];
-            m_ci[i].i = ci[i*2+1];
+        size_t n = m_n;
+        std::vector<std::complex<double>> data(n);
+        for (size_t i = 0; i < n; ++i) {
+            data[i] = std::complex<double>(ci[i*2], ci[i*2+1]);
         }
-        vamp_kiss_fft(m_fconf, m_ci, m_co);
-        for (int i = 0; i < m_n; ++i) {
-            co[i*2] = m_co[i].r;
-            co[i*2+1] = m_co[i].i;
+        
+        pocketfft::shape_t shape = {n};
+        pocketfft::stride_t stride = {sizeof(std::complex<double>)};
+        pocketfft::shape_t axes = {0};
+        
+        pocketfft::c2c(shape, stride, stride, axes, true, data.data(), data.data(), 1.0);
+        
+        for (size_t i = 0; i < n; ++i) {
+            co[i*2] = data[i].real();
+            co[i*2+1] = data[i].imag();
         }
     }
 
     void inverse(const double *ci, double *co) {
-        for (int i = 0; i < m_n; ++i) {
-            m_ci[i].r = ci[i*2];
-            m_ci[i].i = ci[i*2+1];
+        size_t n = m_n;
+        std::vector<std::complex<double>> data(n);
+        for (size_t i = 0; i < n; ++i) {
+            data[i] = std::complex<double>(ci[i*2], ci[i*2+1]);
         }
-        vamp_kiss_fft(m_iconf, m_ci, m_co);
-        double scale = 1.0 / double(m_n);
-        for (int i = 0; i < m_n; ++i) {
-            co[i*2] = m_co[i].r * scale;
-            co[i*2+1] = m_co[i].i * scale;
+        
+        pocketfft::shape_t shape = {n};
+        pocketfft::stride_t stride = {sizeof(std::complex<double>)};
+        pocketfft::shape_t axes = {0};
+        
+        pocketfft::c2c(shape, stride, stride, axes, false, data.data(), data.data(), 1.0);
+        
+        double scale = 1.0 / double(n);
+        for (size_t i = 0; i < n; ++i) {
+            co[i*2] = data[i].real() * scale;
+            co[i*2+1] = data[i].imag() * scale;
         }
     }
     
 private:
-    int m_n;
-    vamp_kiss_fft_cfg m_fconf;
-    vamp_kiss_fft_cfg m_iconf;
-    vamp_kiss_fft_cpx *m_ci;
-    vamp_kiss_fft_cpx *m_co;
+    size_t m_n;
 };
 
 FFTComplex::FFTComplex(unsigned int n) :
@@ -185,55 +173,54 @@ FFTComplex::inverse(const double *ci, double *co)
 class FFTReal::D
 {
 public:
-    D(int n) :
-        m_n(n),
-        m_fconf(vamp_kiss_fftr_alloc(n, false, 0, 0)),
-        m_iconf(vamp_kiss_fftr_alloc(n, true, 0, 0)),
-        m_ri(new vamp_kiss_fft_scalar[m_n]),
-        m_ro(new vamp_kiss_fft_scalar[m_n]),
-        m_freq(new vamp_kiss_fft_cpx[n/2+1]) { }
-
-    ~D() {
-        vamp_kiss_fftr_free(m_fconf);
-        vamp_kiss_fftr_free(m_iconf);
-        delete[] m_ri;
-        delete[] m_ro;
-        delete[] m_freq;
-    }
+    D(int n) : m_n(n) { }
+    ~D() { }
 
     void forward(const double *ri, double *co) {
-        for (int i = 0; i < m_n; ++i) {
-            // in case vamp_kiss_fft_scalar is float
-            m_ri[i] = ri[i];
-        }
-        vamp_kiss_fftr(m_fconf, m_ri, m_freq);
-        int hs = m_n/2 + 1;
-        for (int i = 0; i < hs; ++i) {
-            co[i*2] = m_freq[i].r;
-            co[i*2+1] = m_freq[i].i;
+        size_t n = m_n;
+        std::vector<double> in(n);
+        for(size_t i=0; i<n; ++i) in[i] = ri[i];
+        
+        std::vector<std::complex<double>> out(n/2 + 1);
+        
+        pocketfft::shape_t shape_in = {n};
+        pocketfft::stride_t stride_in = {sizeof(double)};
+        pocketfft::stride_t stride_out = {sizeof(std::complex<double>)};
+        size_t axis = 0;
+        
+        pocketfft::r2c(shape_in, stride_in, stride_out, axis, true, in.data(), out.data(), 1.0);
+        
+        for (size_t i = 0; i < n/2 + 1; ++i) {
+            co[i*2] = out[i].real();
+            co[i*2+1] = out[i].imag();
         }
     }
 
     void inverse(const double *ci, double *ro) {
-        int hs = m_n/2 + 1;
-        for (int i = 0; i < hs; ++i) {
-            m_freq[i].r = ci[i*2];
-            m_freq[i].i = ci[i*2+1];
+        size_t n = m_n;
+        std::vector<std::complex<double>> in(n/2 + 1);
+        
+        for (size_t i = 0; i < n/2 + 1; ++i) {
+            in[i] = std::complex<double>(ci[i*2], ci[i*2+1]);
         }
-        vamp_kiss_fftri(m_iconf, m_freq, m_ro);
-        double scale = 1.0 / double(m_n);
-        for (int i = 0; i < m_n; ++i) {
-            ro[i] = m_ro[i] * scale;
+        
+        std::vector<double> out(n);
+        
+        pocketfft::shape_t shape_out = {n};
+        pocketfft::stride_t stride_in = {sizeof(std::complex<double>)};
+        pocketfft::stride_t stride_out = {sizeof(double)};
+        size_t axis = 0;
+        
+        pocketfft::c2r(shape_out, stride_in, stride_out, axis, false, in.data(), out.data(), 1.0);
+        
+        double scale = 1.0 / double(n);
+        for(size_t i=0; i<n; ++i) {
+            ro[i] = out[i] * scale;
         }
     }
     
 private:
-    int m_n;
-    vamp_kiss_fftr_cfg m_fconf;
-    vamp_kiss_fftr_cfg m_iconf;
-    vamp_kiss_fft_scalar *m_ri;
-    vamp_kiss_fft_scalar *m_ro;
-    vamp_kiss_fft_cpx *m_freq;
+    size_t m_n;
 };
 
 FFTReal::FFTReal(unsigned int n) :

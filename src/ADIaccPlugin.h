@@ -1,13 +1,13 @@
-#ifndef _ACIACC_PLUGIN_H_
-#define _ACIACC_PLUGIN_H_
+#ifndef _ADI_ACC_PLUGIN_H_
+#define _ADI_ACC_PLUGIN_H_
 
 #include "ACIBasePlugin.h"
 
-class ACIaccPlugin : public ACIBasePlugin
+class ADIaccPlugin : public ACIBasePlugin
 {
 public:
-    ACIaccPlugin(float inputSampleRate);
-    virtual ~ACIaccPlugin();
+    ADIaccPlugin(float inputSampleRate);
+    virtual ~ADIaccPlugin();
 
     string getIdentifier() const;
     string getName() const;
@@ -27,23 +27,19 @@ public:
     OutputList getOutputDescriptors() const;
 
     bool initialise(size_t channels, size_t stepSize, size_t blockSize);
-    void reset();
+
+    size_t getPreferredBlockSize() const;
+    size_t getPreferredStepSize() const;
 
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t numFrames);
+    // Parameters
+    float m_dbThreshold;
+    float m_freqStep; // Hz
 
-private:
-    float m_clusterSize; // in seconds
-    
-    // Streaming calculation state
-    float m_runningTotalACI;
-    size_t m_framesPerCluster;
-    
-    // Reusable accumulators to avoid allocation in loop
-    std::vector<float> m_sumIntensity;
-    std::vector<float> m_sumAbsDiff;
+    // We need to store all data to normalize by global max (if required)
+    // ACIBasePlugin already has m_spectralData
 };
 
 #endif
