@@ -27,11 +27,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup MinGW (Windows)
+    - name: Setup MSYS2
       if: matrix.os == 'windows-latest'
-      uses: egor-tensin/setup-mingw@v2
+      uses: msys2/setup-msys2@v2
       with:
-        platform: x64
+        msystem: MINGW64
+        install: mingw-w64-x86_64-gcc make
+        path-type: inherit
 
     - name: Build
       run: make PLATFORM=${{ matrix.platform }}
