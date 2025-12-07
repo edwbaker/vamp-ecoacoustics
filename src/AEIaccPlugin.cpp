@@ -1,67 +1,67 @@
-// ADIaccPlugin.cpp - Acoustic Diversity Index (Accumulated)
-// Matches soundecology::acoustic_diversity behavior
+// AEIaccPlugin.cpp - Acoustic Evenness Index (Accumulated)
+// Matches soundecology::acoustic_eveness behavior
 
-#include "ADIaccPlugin.h"
+#include "AEIaccPlugin.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
 #include <iostream>
-#include <map>
+#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-ADIaccPlugin::ADIaccPlugin(float inputSampleRate) :
+AEIaccPlugin::AEIaccPlugin(float inputSampleRate) :
     ACIBasePlugin(inputSampleRate),
     m_dbThreshold(-50.0f),
     m_freqStep(1000.0f)
 {
-    m_maxFreq = 10000.0f; // Default max freq for ADI
+    m_maxFreq = 10000.0f; // Default max freq for AEI in soundecology
 }
 
-ADIaccPlugin::~ADIaccPlugin()
+AEIaccPlugin::~AEIaccPlugin()
 {
 }
 
 string
-ADIaccPlugin::getIdentifier() const
+AEIaccPlugin::getIdentifier() const
 {
-    return "adi-acc";
+    return "aei-acc";
 }
 
 string
-ADIaccPlugin::getName() const
+AEIaccPlugin::getName() const
 {
-    return "Acoustic Diversity Index (Accumulated)";
+    return "Acoustic Evenness Index (soundecology)";
 }
 
 string
-ADIaccPlugin::getDescription() const
+AEIaccPlugin::getDescription() const
 {
-    return "Calculates the Acoustic Diversity Index (ADI) of a signal.";
+    return "Calculates the Acoustic Evenness Index (AEI) of a signal, matching soundecology implementation.";
 }
 
 string
-ADIaccPlugin::getMaker() const
+AEIaccPlugin::getMaker() const
 {
     return "ReVAMP";
 }
 
 int
-ADIaccPlugin::getPluginVersion() const
+AEIaccPlugin::getPluginVersion() const
 {
     return 1;
 }
 
 string
-ADIaccPlugin::getCopyright() const
+AEIaccPlugin::getCopyright() const
 {
     return "MIT License";
 }
 
 Vamp::Plugin::ParameterList
-ADIaccPlugin::getParameterDescriptors() const
+AEIaccPlugin::getParameterDescriptors() const
 {
     ParameterList list;
 
@@ -100,19 +100,19 @@ ADIaccPlugin::getParameterDescriptors() const
 }
 
 float
-ADIaccPlugin::getParameter(string identifier) const
+AEIaccPlugin::getParameter(string identifier) const
 {
-    if (identifier == "maxfreq") return m_maxFreq; // Stored in base class but used here
+    if (identifier == "maxfreq") return m_maxFreq / 1000.0f;
     if (identifier == "db_threshold") return m_dbThreshold;
     if (identifier == "freq_step") return m_freqStep;
     return 0;
 }
 
 void
-ADIaccPlugin::setParameter(string identifier, float value)
+AEIaccPlugin::setParameter(string identifier, float value)
 {
     if (identifier == "maxfreq") {
-        m_maxFreq = value;
+        m_maxFreq = value * 1000.0f;
     } else if (identifier == "db_threshold") {
         m_dbThreshold = value;
     } else if (identifier == "freq_step") {
@@ -121,32 +121,32 @@ ADIaccPlugin::setParameter(string identifier, float value)
 }
 
 Vamp::Plugin::ProgramList
-ADIaccPlugin::getPrograms() const
+AEIaccPlugin::getPrograms() const
 {
     ProgramList list;
     return list;
 }
 
 string
-ADIaccPlugin::getCurrentProgram() const
+AEIaccPlugin::getCurrentProgram() const
 {
     return "";
 }
 
 void
-ADIaccPlugin::selectProgram(string name)
+AEIaccPlugin::selectProgram(string name)
 {
 }
 
 Vamp::Plugin::OutputList
-ADIaccPlugin::getOutputDescriptors() const
+AEIaccPlugin::getOutputDescriptors() const
 {
     OutputList list;
 
     OutputDescriptor d;
-    d.identifier = "adi";
-    d.name = "ADI";
-    d.description = "Acoustic Diversity Index";
+    d.identifier = "aei";
+    d.name = "AEI";
+    d.description = "Acoustic Evenness Index";
     d.unit = "";
     d.hasFixedBinCount = true;
     d.binCount = 1;
@@ -160,31 +160,30 @@ ADIaccPlugin::getOutputDescriptors() const
 }
 
 size_t
-ADIaccPlugin::getPreferredBlockSize() const
+AEIaccPlugin::getPreferredBlockSize() const
 {
-    return 4096;
+    return 4096; // soundecology default window length is usually sample_rate/10, but we use fixed block size
 }
 
 size_t
-ADIaccPlugin::getPreferredStepSize() const
+AEIaccPlugin::getPreferredStepSize() const
 {
-    return 4096;
+    return 4096; // No overlap by default in soundecology?
 }
 
 bool
-ADIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
+AEIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
     if (!ACIBasePlugin::initialise(channels, stepSize, blockSize)) return false;
 
     // Reserve spectral data
-    // ADI needs the whole file, so we reserve a reasonable amount
     m_spectralData.reserve(10000 * m_numBins);
 
     return true;
 }
 
 Vamp::Plugin::FeatureSet
-ADIaccPlugin::getRemainingFeatures()
+AEIaccPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
     
@@ -200,31 +199,30 @@ ADIaccPlugin::getRemainingFeatures()
     if (m_spectralData.empty()) return fs;
 
     // 1. Find Global Max
-    // soundecology normalizes to 0 dB.
-    // This means finding the max magnitude and scaling so max = 1.0 (0 dB).
     // Optimized: m_globalMax is tracked in ACIBasePlugin
     size_t numFrames = m_spectralData.size() / m_numBins;
     float globalMax = m_globalMax;
     
-    // 2. Optimization: Pre-calculate threshold and bin mapping
-    // Instead of converting every bin to dB, we convert the threshold to linear magnitude.
-    // dB = 20 * log10(mag / globalMax) > threshold
-    // mag > globalMax * 10^(threshold / 20)
-    
+    // 2. Calculate Threshold
     float linearThreshold = 0.0f;
     if (globalMax > 0) {
         linearThreshold = globalMax * std::pow(10.0f, m_dbThreshold / 20.0f);
     } else {
-        linearThreshold = 1e9f; // Unreachable if max is 0
+        linearThreshold = 1e9f; // Unreachable
     }
     
-    // Pre-calculate bin to band mapping
-    float maxFreqHz = m_maxFreq * 1000.0f; // m_maxFreq is in kHz
+    // 3. Pre-calculate bin to band mapping
+    float maxFreqHz = m_maxFreq; // m_maxFreq is already in Hz (stored in ACIBasePlugin)
+    // Wait, setParameter sets it in Hz? 
+    // In ADIaccPlugin setParameter: m_maxFreq = value * 1000.0f;
+    // So m_maxFreq is in Hz.
+    
     if (maxFreqHz <= 0) maxFreqHz = m_inputSampleRate / 2.0f;
     
     int numBands = static_cast<int>(std::ceil(maxFreqHz / m_freqStep));
-    std::vector<int> bandCounts(numBands, 0);
-    int totalCount = 0;
+    // soundecology usually has 10 bands of 1000Hz up to 10000Hz.
+    
+    std::vector<double> bandCounts(numBands, 0.0); // Using double for Gini calc
     
     float binResolution = (m_inputSampleRate / 2.0f) / (m_blockSize / 2);
     
@@ -247,8 +245,7 @@ ADIaccPlugin::getRemainingFeatures()
         }
     }
     
-    // 3. Iterate and Count
-    // Optimized loop: Iterate frames, then bands, then bins in range.
+    // 4. Iterate and Count
     for (size_t t = 0; t < numFrames; ++t) {
         size_t frameOffset = t * m_numBins;
         
@@ -259,30 +256,41 @@ ADIaccPlugin::getRemainingFeatures()
             if (start != -1 && end != -1) {
                 for (int b = start; b < end; ++b) {
                     if (m_spectralData[frameOffset + b] > linearThreshold) {
-                        bandCounts[band]++;
-                        totalCount++;
+                        bandCounts[band] += 1.0;
                     }
                 }
             }
         }
     }
     
-    // 4. Calculate Shannon Index
-    // H = - sum(p * ln(p))
-    double shannon = 0.0;
-    if (totalCount > 0) {
-        for (int count : bandCounts) {
-            if (count > 0) {
-                double p = static_cast<double>(count) / totalCount;
-                shannon -= p * std::log(p);
-            }
-        }
+    // 5. Calculate Gini Index
+    // G = (2 * sum(i * xi) / (n * sum(xi))) - (n + 1) / n
+    // where xi are sorted in ascending order, i is 1-based index
+    
+    std::sort(bandCounts.begin(), bandCounts.end());
+    
+    double sumCounts = 0.0;
+    double weightedSum = 0.0;
+    double n = static_cast<double>(numBands);
+    
+    for (int i = 0; i < numBands; ++i) {
+        sumCounts += bandCounts[i];
+        weightedSum += (i + 1) * bandCounts[i];
+    }
+    
+    double aei = 0.0;
+    if (sumCounts > 0) {
+        aei = (2.0 * weightedSum) / (n * sumCounts) - (n + 1.0) / n;
+    } else {
+        // If all counts are 0, Gini is 0 (perfect equality of nothing?)
+        // Or undefined. soundecology returns 0 if no signal?
+        aei = 0.0;
     }
     
     Feature f;
     f.hasTimestamp = true;
     f.timestamp = Vamp::RealTime::frame2RealTime(m_frameCount * m_stepSize, m_inputSampleRate);
-    f.values.push_back(static_cast<float>(shannon));
+    f.values.push_back(static_cast<float>(aei));
     
     fs[0].push_back(f);
     

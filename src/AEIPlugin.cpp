@@ -1,7 +1,7 @@
-// ADIPlugin.cpp - Acoustic Diversity Index
-// Matches scikit-maad acoustic_diversity_index behavior
+// AEIPlugin.cpp - Acoustic Evenness Index
+// Matches scikit-maad acoustic_eveness_index behavior
 
-#include "ADIPlugin.h"
+#include "AEIPlugin.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -12,58 +12,57 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-ADIPlugin::ADIPlugin(float inputSampleRate) :
+AEIPlugin::AEIPlugin(float inputSampleRate) :
     ACIBasePlugin(inputSampleRate),
     m_minFreq(0.0f),
     m_maxFreq(20000.0f),
     m_binStep(1000.0f),
-    m_dbThreshold(-50.0f),
-    m_indexType(0) // Shannon
+    m_dbThreshold(-50.0f)
 {
 }
 
-ADIPlugin::~ADIPlugin()
+AEIPlugin::~AEIPlugin()
 {
 }
 
 string
-ADIPlugin::getIdentifier() const
+AEIPlugin::getIdentifier() const
 {
-    return "adi";
+    return "aei";
 }
 
 string
-ADIPlugin::getName() const
+AEIPlugin::getName() const
 {
-    return "Acoustic Diversity Index (scikit-maad)";
+    return "Acoustic Evenness Index (scikit-maad)";
 }
 
 string
-ADIPlugin::getDescription() const
+AEIPlugin::getDescription() const
 {
-    return "Calculates the Acoustic Diversity Index (ADI) of a signal, matching scikit-maad implementation.";
+    return "Calculates the Acoustic Evenness Index (AEI) of a signal, matching scikit-maad implementation.";
 }
 
 string
-ADIPlugin::getMaker() const
+AEIPlugin::getMaker() const
 {
     return "ReVAMP";
 }
 
 int
-ADIPlugin::getPluginVersion() const
+AEIPlugin::getPluginVersion() const
 {
     return 1;
 }
 
 string
-ADIPlugin::getCopyright() const
+AEIPlugin::getCopyright() const
 {
     return "MIT License";
 }
 
 Vamp::Plugin::ParameterList
-ADIPlugin::getParameterDescriptors() const
+AEIPlugin::getParameterDescriptors() const
 {
     ParameterList list;
 
@@ -108,36 +107,21 @@ ADIPlugin::getParameterDescriptors() const
     d.isQuantized = false;
     list.push_back(d);
 
-    d.identifier = "index_type";
-    d.name = "Index Type";
-    d.description = "Diversity Index Type (0: Shannon, 1: Simpson, 2: Inverse Simpson)";
-    d.unit = "";
-    d.minValue = 0;
-    d.maxValue = 2;
-    d.defaultValue = 0;
-    d.isQuantized = true;
-    d.quantizeStep = 1.0f;
-    d.valueNames.push_back("Shannon");
-    d.valueNames.push_back("Simpson");
-    d.valueNames.push_back("Inverse Simpson");
-    list.push_back(d);
-
     return list;
 }
 
 float
-ADIPlugin::getParameter(string identifier) const
+AEIPlugin::getParameter(string identifier) const
 {
     if (identifier == "min_freq") return m_minFreq;
     if (identifier == "max_freq") return m_maxFreq;
     if (identifier == "bin_step") return m_binStep;
     if (identifier == "db_threshold") return m_dbThreshold;
-    if (identifier == "index_type") return (float)m_indexType;
     return 0;
 }
 
 void
-ADIPlugin::setParameter(string identifier, float value)
+AEIPlugin::setParameter(string identifier, float value)
 {
     if (identifier == "min_freq") {
         m_minFreq = value;
@@ -147,38 +131,36 @@ ADIPlugin::setParameter(string identifier, float value)
         m_binStep = value;
     } else if (identifier == "db_threshold") {
         m_dbThreshold = value;
-    } else if (identifier == "index_type") {
-        m_indexType = (int)value;
     }
 }
 
 Vamp::Plugin::ProgramList
-ADIPlugin::getPrograms() const
+AEIPlugin::getPrograms() const
 {
     ProgramList list;
     return list;
 }
 
 string
-ADIPlugin::getCurrentProgram() const
+AEIPlugin::getCurrentProgram() const
 {
     return "";
 }
 
 void
-ADIPlugin::selectProgram(string name)
+AEIPlugin::selectProgram(string name)
 {
 }
 
 Vamp::Plugin::OutputList
-ADIPlugin::getOutputDescriptors() const
+AEIPlugin::getOutputDescriptors() const
 {
     OutputList list;
 
     OutputDescriptor d;
-    d.identifier = "adi";
-    d.name = "ADI";
-    d.description = "Acoustic Diversity Index";
+    d.identifier = "aei";
+    d.name = "AEI";
+    d.description = "Acoustic Evenness Index";
     d.unit = "";
     d.hasFixedBinCount = true;
     d.binCount = 1;
@@ -192,19 +174,19 @@ ADIPlugin::getOutputDescriptors() const
 }
 
 size_t
-ADIPlugin::getPreferredBlockSize() const
+AEIPlugin::getPreferredBlockSize() const
 {
     return 4096;
 }
 
 size_t
-ADIPlugin::getPreferredStepSize() const
+AEIPlugin::getPreferredStepSize() const
 {
     return 4096;
 }
 
 bool
-ADIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
+AEIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
     if (!ACIBasePlugin::initialise(channels, stepSize, blockSize)) return false;
 
@@ -215,7 +197,7 @@ ADIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 }
 
 Vamp::Plugin::FeatureSet
-ADIPlugin::getRemainingFeatures()
+AEIPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
     
@@ -235,14 +217,7 @@ ADIPlugin::getRemainingFeatures()
     size_t numFrames = m_spectralData.size() / m_numBins;
     float globalMax = m_globalMax;
     
-    // std::cerr << "ADIPlugin: numFrames=" << numFrames << " globalMax=" << globalMax << std::endl;
-
     // 2. Calculate Threshold
-    // scikit-maad: Sxx_dB = amplitude2dB(Sxx/max(Sxx))
-    // threshold is in dB.
-    // val_dB = 20 * log10(val / globalMax)
-    // val > globalMax * 10^(threshold/20)
-    
     float linearThreshold = 0.0f;
     if (globalMax > 0) {
         linearThreshold = globalMax * std::pow(10.0f, m_dbThreshold / 20.0f);
@@ -251,7 +226,6 @@ ADIPlugin::getRemainingFeatures()
     }
     
     // 3. Calculate Scores per Band
-    // N = floor((fmax-fmin)/bin_step)
     int numBands = static_cast<int>(std::floor((m_maxFreq - m_minFreq) / m_binStep));
     if (numBands < 1) numBands = 1;
 
@@ -263,6 +237,7 @@ ADIPlugin::getRemainingFeatures()
     
     // Map bands to bin ranges
     // Instead of per-bin lookup, we precompute which bins belong to which band.
+    // Since bands are contiguous frequency ranges, we can store start/end bin indices.
     struct BandRange {
         int startBin;
         int endBin; // Exclusive
@@ -270,7 +245,6 @@ ADIPlugin::getRemainingFeatures()
     std::vector<BandRange> bandRanges(numBands, {-1, -1});
 
     for (size_t b = 0; b < m_numBins; ++b) {
-        // Fix: m_spectralData stores bins 1 to N/2. Index b is bin b+1.
         float freq = (b + 1) * binResolution;
         
         if (freq >= m_minFreq && freq < m_maxFreq) {
@@ -286,6 +260,7 @@ ADIPlugin::getRemainingFeatures()
     
     // Iterate
     // Optimized loop: Iterate frames, then bands, then bins in range.
+    // This avoids the indirect lookup binToBand[b] and the check if band != -1.
     for (size_t t = 0; t < numFrames; ++t) {
         size_t frameOffset = t * m_numBins;
         
@@ -307,53 +282,44 @@ ADIPlugin::getRemainingFeatures()
     }
     
     // Calculate scores (proportions)
-    double sumScores = 0.0;
     for (int i = 0; i < numBands; ++i) {
         if (binCounts[i] > 0) {
             scores[i] = static_cast<double>(hitCounts[i]) / binCounts[i];
         } else {
             scores[i] = 0.0;
         }
-        sumScores += scores[i];
     }
     
-    // 4. Calculate Index
-    double adi = 0.0;
+    // 4. Calculate Gini Index
+    // G = (2 * sum(i * xi) / (n * sum(xi))) - (n + 1) / n
+    // where xi are sorted in ascending order, i is 1-based index
     
+    std::sort(scores.begin(), scores.end());
+    
+    double sumScores = 0.0;
+    double weightedSum = 0.0;
+    double n = static_cast<double>(numBands);
+    
+    for (int i = 0; i < numBands; ++i) {
+        sumScores += scores[i];
+        weightedSum += (i + 1) * scores[i];
+    }
+    
+    double aei = 0.0;
     if (sumScores > 0) {
-        // Normalize scores to probability distribution
-        std::vector<double> p(numBands);
-        for (int i = 0; i < numBands; ++i) {
-            p[i] = scores[i] / sumScores;
-        }
-        
-        if (m_indexType == 0) { // Shannon
-            for (double val : p) {
-                if (val > 0) {
-                    adi -= val * std::log(val);
-                }
-            }
-        } else if (m_indexType == 1) { // Simpson
-            double sumSq = 0.0;
-            for (double val : p) {
-                sumSq += val * val;
-            }
-            adi = 1.0 - sumSq;
-        } else if (m_indexType == 2) { // Inverse Simpson
-            double sumSq = 0.0;
-            for (double val : p) {
-                sumSq += val * val;
-            }
-            if (sumSq > 0) {
-                adi = 1.0 / sumSq;
-            }
-        }
+        aei = (2.0 * weightedSum) / (n * sumScores) - (n + 1.0) / n;
+    } else {
+        // If sum is 0, all scores are 0. Perfect equality?
+        // Gini of [0, 0, 0] is technically undefined (0/0) or 0.
+        // scikit-maad likely returns 0 or NaN.
+        // Let's assume 0 (perfect evenness of silence).
+        aei = 0.0;
     }
     
     Feature f;
     f.hasTimestamp = true;
     f.timestamp = Vamp::RealTime::frame2RealTime(m_frameCount * m_stepSize, m_inputSampleRate);
-    f.values.push_back(static_cast<float>(adi));
+    f.values.push_back(static_cast<float>(aei));
     
     fs[0].push_back(f);
     

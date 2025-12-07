@@ -44,6 +44,7 @@ protected:
     size_t m_stepSize;
     size_t m_numBins;
     size_t m_frameCount;
+    float m_globalMax; // Track global maximum magnitude
 
     // FFT
     Vamp::FFTReal *m_fft;

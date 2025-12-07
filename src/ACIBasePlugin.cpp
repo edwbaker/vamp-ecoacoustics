@@ -17,6 +17,7 @@ ACIBasePlugin::ACIBasePlugin(float inputSampleRate) :
     m_stepSize(0),
     m_numBins(0),
     m_frameCount(0),
+    m_globalMax(0.0f),
     m_fft(nullptr),
     m_batchSize(256)
 {
@@ -70,6 +71,7 @@ ACIBasePlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_blockSize = blockSize;
     m_stepSize = stepSize;
     m_frameCount = 0;
+    m_globalMax = 0.0f;
     m_spectralData.clear();
     m_numBins = blockSize / 2; // We store bins 1 to N/2 (skipping DC)
 
@@ -81,10 +83,10 @@ ACIBasePlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     // Reserve input buffer
     m_inputBuffer.reserve(blockSize * m_batchSize);
     
-    // Pre-compute Hamming window
+    // Pre-compute Hanning window
     m_window.resize(m_blockSize);
     for (size_t i = 0; i < m_blockSize; ++i) {
-        m_window[i] = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / (m_blockSize - 1));
+        m_window[i] = 0.5 * (1.0 - std::cos(2.0 * M_PI * i / (m_blockSize - 1)));
     }
 
     return true;
@@ -96,6 +98,7 @@ ACIBasePlugin::reset()
     m_spectralData.clear();
     m_inputBuffer.clear();
     m_frameCount = 0;
+    m_globalMax = 0.0f;
 }
 
 Vamp::Plugin::FeatureSet
@@ -143,6 +146,9 @@ void ACIBasePlugin::computeMagnitudes(size_t numFrames)
             double imag = m_fftOut[2 * i + 1];
             // Use float for storage to save memory/bandwidth
             float magnitude = static_cast<float>(std::sqrt(real * real + imag * imag));
+            if (magnitude > m_globalMax) {
+                m_globalMax = magnitude;
+            }
             m_spectralData.push_back(magnitude);
         }
         
