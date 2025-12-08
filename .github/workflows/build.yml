@@ -72,32 +72,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download Linux Artifact
+      - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: linux-build
           path: release-assets
-
-      - name: Download macOS Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-build
-          path: release-assets
-
-      - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-build
-          path: release-assets
-
-      - name: Download WASM Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: wasm-build
-          path: release-assets
+          merge-multiple: true
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
 
