@@ -12,7 +12,7 @@
 #endif
 
 ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
-    ACIBasePlugin(inputSampleRate),
+    EcoacousticSpectralPlugin(inputSampleRate),
     m_clusterSize(5.0f), // Default 5 seconds
     m_runningTotalACI(0.0f),
     m_framesPerCluster(0)
@@ -167,7 +167,7 @@ ACIaccPlugin::getOutputDescriptors() const
 bool
 ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
-    if (!ACIBasePlugin::initialise(channels, stepSize, blockSize)) return false;
+    if (!EcoacousticSpectralPlugin::initialise(channels, stepSize, blockSize)) return false;
 
     // Calculate frames per cluster
     float framesPerSecond = m_inputSampleRate / m_stepSize;
@@ -187,7 +187,7 @@ ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 void
 ACIaccPlugin::reset()
 {
-    ACIBasePlugin::reset();
+    EcoacousticSpectralPlugin::reset();
     m_runningTotalACI = 0.0f;
 }
 

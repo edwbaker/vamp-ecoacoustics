@@ -11,7 +11,7 @@
 #endif
 
 ACIPlugin::ACIPlugin(float inputSampleRate) :
-    ACIBasePlugin(inputSampleRate),
+    EcoacousticSpectralPlugin(inputSampleRate),
     m_nbWindows(1)
 {
 }
@@ -159,7 +159,7 @@ ACIPlugin::getOutputDescriptors() const
 bool
 ACIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
-    if (!ACIBasePlugin::initialise(channels, stepSize, blockSize)) return false;
+    if (!EcoacousticSpectralPlugin::initialise(channels, stepSize, blockSize)) return false;
 
     // Reserve spectral data (heuristic: assume 1 minute of audio at 44.1kHz with 512 hop)
     // ~5000 frames * 256 bins = 1.2M floats = 5MB. Safe to reserve some.

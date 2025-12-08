@@ -177,16 +177,25 @@ AmplitudeIndexPlugin::FeatureSet AmplitudeIndexPlugin::getRemainingFeatures()
     if (m_envelope.empty()) return fs;
 
     // Calculate M (Median)
-    vector<float> sortedEnv = m_envelope;
-    std::sort(sortedEnv.begin(), sortedEnv.end());
+    // Use nth_element for O(N) performance instead of O(N log N) sort
+    // And do it in-place to save memory
+    size_t n = m_envelope.size();
+    float M = 0.0f;
     
-    float M = 0.0;
-    size_t n = sortedEnv.size();
     if (n > 0) {
-        if (n % 2 == 0) {
-            M = (sortedEnv[n / 2 - 1] + sortedEnv[n / 2]) / 2.0f;
+        size_t mid = n / 2;
+        std::nth_element(m_envelope.begin(), m_envelope.begin() + mid, m_envelope.end());
+        
+        if (n % 2 != 0) {
+            M = m_envelope[mid];
         } else {
-            M = sortedEnv[n / 2];
+            // Even number of elements: median is average of mid-1 and mid
+            // mid is already in place. We need max of first half.
+            float val2 = m_envelope[mid];
+            // Find max element in the first half (excluding mid)
+            auto maxIt = std::max_element(m_envelope.begin(), m_envelope.begin() + mid);
+            float val1 = *maxIt;
+            M = (val1 + val2) / 2.0f;
         }
     }
     

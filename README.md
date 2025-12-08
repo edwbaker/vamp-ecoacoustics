@@ -1,12 +1,21 @@
-# ACI Plugin - Acoustic Complexity Index
+# Ecoacoustic Vamp Plugins
 
 ## Overview
 
-This Vamp plugin implements the Acoustic Complexity Index (ACI) as described in Pieretti et al. (2011) and mimics the implementation of the `seewave::ACI()` function in R.
+This repository contains a collection of Vamp plugins for ecoacoustic analysis, implementing various indices commonly used in bioacoustics. These plugins are designed to mirror the behavior of standard R (`seewave`, `tuneR`) and Python (`maad`) implementations, providing high-performance C++ alternatives.
 
-## What is ACI?
+## Implemented Indices
 
-The Acoustic Complexity Index quantifies the variability of intensities registered in audio recordings. It has been proven to be correlated with the number of vocalizing species in bioacoustic studies.
+1.  **ACI (Acoustic Complexity Index)**: Measures the variability of intensities. Mirrors `seewave::ACI`.
+2.  **ADI (Acoustic Diversity Index)**: Measures the diversity of the spectrum. Mirrors `seewave::ADI`.
+3.  **AEI (Acoustic Evenness Index)**: Measures the evenness of the spectrum. Mirrors `seewave::AEI`.
+4.  **BI (Bioacoustic Index)**: Calculates the area under the curve in specific frequency bands. Mirrors `seewave::bio`.
+5.  **SH (Spectral Entropy)**: Shannon entropy of the spectral distribution. Mirrors `seewave::sh`.
+6.  **TH (Temporal Entropy)**: Shannon entropy of the amplitude envelope. Mirrors `seewave::th`.
+7.  **H (Total Entropy)**: Product of Spectral and Temporal Entropy ($H = SH \times TH$). Mirrors `seewave::H`.
+8.  **NDSI (Normalized Difference Soundscape Index)**: Ratio of biophony to anthropophony. Mirrors `seewave::NDSI`.
+
+## Installation
 
 ## Implementation Details
 

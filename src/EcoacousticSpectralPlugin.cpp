@@ -1,4 +1,4 @@
-#include "ACIBasePlugin.h"
+#include "EcoacousticSpectralPlugin.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -8,7 +8,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-ACIBasePlugin::ACIBasePlugin(float inputSampleRate) :
+EcoacousticSpectralPlugin::EcoacousticSpectralPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_minFreq(0),
     m_maxFreq(0),
@@ -23,7 +23,7 @@ ACIBasePlugin::ACIBasePlugin(float inputSampleRate) :
 {
 }
 
-ACIBasePlugin::~ACIBasePlugin()
+EcoacousticSpectralPlugin::~EcoacousticSpectralPlugin()
 {
     if (m_fft) {
         delete m_fft;
@@ -32,37 +32,37 @@ ACIBasePlugin::~ACIBasePlugin()
 }
 
 Vamp::Plugin::InputDomain
-ACIBasePlugin::getInputDomain() const
+EcoacousticSpectralPlugin::getInputDomain() const
 {
     return TimeDomain;
 }
 
 size_t
-ACIBasePlugin::getPreferredBlockSize() const
+EcoacousticSpectralPlugin::getPreferredBlockSize() const
 {
     return 512;
 }
 
 size_t
-ACIBasePlugin::getPreferredStepSize() const
+EcoacousticSpectralPlugin::getPreferredStepSize() const
 {
     return 512;
 }
 
 size_t
-ACIBasePlugin::getMinChannelCount() const
+EcoacousticSpectralPlugin::getMinChannelCount() const
 {
     return 1;
 }
 
 size_t
-ACIBasePlugin::getMaxChannelCount() const
+EcoacousticSpectralPlugin::getMaxChannelCount() const
 {
     return 1;
 }
 
 bool
-ACIBasePlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
+EcoacousticSpectralPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
     if (channels < getMinChannelCount() ||
         channels > getMaxChannelCount()) return false;
@@ -93,7 +93,7 @@ ACIBasePlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 }
 
 void
-ACIBasePlugin::reset()
+EcoacousticSpectralPlugin::reset()
 {
     m_spectralData.clear();
     m_inputBuffer.clear();
@@ -102,7 +102,7 @@ ACIBasePlugin::reset()
 }
 
 Vamp::Plugin::FeatureSet
-ACIBasePlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
+EcoacousticSpectralPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
 {
     FeatureSet fs;
     
@@ -121,7 +121,7 @@ ACIBasePlugin::process(const float *const *inputBuffers, Vamp::RealTime timestam
     return fs;
 }
 
-void ACIBasePlugin::computeMagnitudes(size_t numFrames)
+void EcoacousticSpectralPlugin::computeMagnitudes(size_t numFrames)
 {
     size_t blockSize = m_blockSize;
     
@@ -156,7 +156,7 @@ void ACIBasePlugin::computeMagnitudes(size_t numFrames)
     }
 }
 
-void ACIBasePlugin::processBatch(size_t numFrames)
+void EcoacousticSpectralPlugin::processBatch(size_t numFrames)
 {
     if (numFrames == 0) return;
     computeMagnitudes(numFrames);

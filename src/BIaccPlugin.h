@@ -1,13 +1,13 @@
-#ifndef _ADI_PLUGIN_H_
-#define _ADI_PLUGIN_H_
+#ifndef _BI_ACC_PLUGIN_H_
+#define _BI_ACC_PLUGIN_H_
 
 #include "EcoacousticSpectralPlugin.h"
 
-class ADIPlugin : public EcoacousticSpectralPlugin
+class BIaccPlugin : public EcoacousticSpectralPlugin
 {
 public:
-    ADIPlugin(float inputSampleRate);
-    virtual ~ADIPlugin();
+    BIaccPlugin(float inputSampleRate);
+    virtual ~BIaccPlugin();
 
     string getIdentifier() const;
     string getName() const;
@@ -39,15 +39,9 @@ protected:
     // Parameters
     float m_minFreq;
     float m_maxFreq;
-    float m_binStep; // Hz
-    float m_dbThreshold;
-    int m_indexType; // 0: Shannon, 1: Simpson, 2: Inverse Simpson
-
-    // Histogram-based optimization
-    std::vector<std::vector<int>> m_bandHistograms;
-    bool m_bandsInitialized;
-    std::vector<int> m_bandStartBins;
-    std::vector<int> m_bandEndBins;
+    
+    // Accumulator
+    std::vector<double> m_accumulatedSpectrum;
 };
 
 #endif

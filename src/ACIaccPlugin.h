@@ -1,9 +1,9 @@
 #ifndef _ACIACC_PLUGIN_H_
 #define _ACIACC_PLUGIN_H_
 
-#include "ACIBasePlugin.h"
+#include "EcoacousticSpectralPlugin.h"
 
-class ACIaccPlugin : public ACIBasePlugin
+class ACIaccPlugin : public EcoacousticSpectralPlugin
 {
 public:
     ACIaccPlugin(float inputSampleRate);

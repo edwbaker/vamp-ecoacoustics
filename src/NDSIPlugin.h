@@ -1,13 +1,13 @@
-#ifndef _ACI_PLUGIN_H_
-#define _ACI_PLUGIN_H_
+#ifndef _NDSI_PLUGIN_H_
+#define _NDSI_PLUGIN_H_
 
-#include "ACIBasePlugin.h"
+#include "EcoacousticSpectralPlugin.h"
 
-class ACIPlugin : public ACIBasePlugin
+class NDSIPlugin : public EcoacousticSpectralPlugin
 {
 public:
-    ACIPlugin(float inputSampleRate);
-    virtual ~ACIPlugin();
+    NDSIPlugin(float inputSampleRate);
+    virtual ~NDSIPlugin();
 
     string getIdentifier() const;
     string getName() const;
@@ -27,11 +27,21 @@ public:
     OutputList getOutputDescriptors() const;
 
     bool initialise(size_t channels, size_t stepSize, size_t blockSize);
+    void reset();
 
     FeatureSet getRemainingFeatures();
 
 protected:
-    int m_nbWindows;
+    void processBatch(size_t numFrames);
+
+    // Accumulator for Power Spectrum
+    std::vector<double> m_accumulatedPower;
+
+    // Parameters
+    float m_anthroMin;
+    float m_anthroMax;
+    float m_bioMin;
+    float m_bioMax;
 };
 
 #endif

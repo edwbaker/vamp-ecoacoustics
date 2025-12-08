@@ -1,9 +1,9 @@
 #ifndef _ADI_ACC_PLUGIN_H_
 #define _ADI_ACC_PLUGIN_H_
 
-#include "ACIBasePlugin.h"
+#include "EcoacousticSpectralPlugin.h"
 
-class ADIaccPlugin : public ACIBasePlugin
+class ADIaccPlugin : public EcoacousticSpectralPlugin
 {
 public:
     ADIaccPlugin(float inputSampleRate);
@@ -34,12 +34,20 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
+    void processBatch(size_t numFrames);
+
     // Parameters
     float m_dbThreshold;
     float m_freqStep; // Hz
 
-    // We need to store all data to normalize by global max (if required)
-    // ACIBasePlugin already has m_spectralData
+    // Histogram-based optimization
+    // We store a histogram of dB values for each band
+    // This allows calculating the threshold count relative to Global Max at the end
+    // without storing the full spectral data.
+    std::vector<std::vector<int>> m_bandHistograms;
+    bool m_bandsInitialized;
+    std::vector<int> m_bandStartBins;
+    std::vector<int> m_bandEndBins;
 };
 
 #endif

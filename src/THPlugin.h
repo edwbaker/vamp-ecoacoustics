@@ -1,6 +1,6 @@
 
-#ifndef _TEMPORAL_ENTROPY_PLUGIN_H_
-#define _TEMPORAL_ENTROPY_PLUGIN_H_
+#ifndef _TH_PLUGIN_H_
+#define _TH_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
 #include "vamp-sdk/FFT.h"
@@ -9,11 +9,11 @@
 using std::string;
 using std::vector;
 
-class TemporalEntropyPlugin : public Vamp::Plugin
+class THPlugin : public Vamp::Plugin
 {
 public:
-    TemporalEntropyPlugin(float inputSampleRate);
-    virtual ~TemporalEntropyPlugin();
+    THPlugin(float inputSampleRate);
+    virtual ~THPlugin();
 
     string getIdentifier() const;
     string getName() const;
@@ -46,15 +46,21 @@ public:
 
     FeatureSet getRemainingFeatures();
 
+    // Public method to compute TH, useful for HPlugin
+    double computeTH() const;
+
 protected:
     size_t m_blockSize;
     size_t m_stepSize;
     
-    // Buffer for accumulating envelope values
-    vector<float> m_envelope;
+    // Accumulators for O(1) memory entropy calculation
+    double m_sumAmplitude;
+    double m_sumAmplitudeLogAmplitude;
+    size_t m_count;
     
-    // FFT object
+    // FFT objects
     Vamp::FFTComplex *m_fft;
+    Vamp::FFTReal *m_fftReal;
     
     // Buffers for FFT
     double *m_complexInput;

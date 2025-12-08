@@ -13,7 +13,7 @@
 #endif
 
 ADIPlugin::ADIPlugin(float inputSampleRate) :
-    ACIBasePlugin(inputSampleRate),
+    EcoacousticSpectralPlugin(inputSampleRate),
     m_minFreq(0.0f),
     m_maxFreq(20000.0f),
     m_binStep(1000.0f),
@@ -206,12 +206,89 @@ ADIPlugin::getPreferredStepSize() const
 bool
 ADIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
-    if (!ACIBasePlugin::initialise(channels, stepSize, blockSize)) return false;
+    if (!EcoacousticSpectralPlugin::initialise(channels, stepSize, blockSize)) return false;
 
-    // Reserve spectral data
-    m_spectralData.reserve(10000 * m_numBins);
+    m_bandsInitialized = false;
+    m_bandHistograms.clear();
+    m_bandStartBins.clear();
+    m_bandEndBins.clear();
 
     return true;
+}
+
+void ADIPlugin::processBatch(size_t numFrames)
+{
+    if (numFrames == 0) return;
+
+    // Initialize bands if needed
+    if (!m_bandsInitialized) {
+        float maxFreqHz = m_maxFreq;
+        if (maxFreqHz <= 0) maxFreqHz = m_inputSampleRate / 2.0f;
+        
+        int numBands = static_cast<int>(std::floor((maxFreqHz - m_minFreq) / m_binStep));
+        if (numBands < 1) numBands = 1;
+        
+        // 3000 bins for -200.0 to +100.0 dB with 0.1 step
+        m_bandHistograms.assign(numBands, std::vector<int>(3000, 0));
+        
+        m_bandStartBins.assign(numBands, -1);
+        m_bandEndBins.assign(numBands, -1);
+        
+        float binResolution = (m_inputSampleRate / 2.0f) / (m_blockSize / 2);
+        
+        for (size_t b = 0; b < m_numBins; ++b) {
+            float freq = (b + 1) * binResolution;
+            if (freq >= m_minFreq && freq < maxFreqHz) {
+                int bandIndex = static_cast<int>(std::floor((freq - m_minFreq) / m_binStep));
+                if (bandIndex >= 0 && bandIndex < numBands) {
+                    if (m_bandStartBins[bandIndex] == -1) {
+                        m_bandStartBins[bandIndex] = b;
+                    }
+                    m_bandEndBins[bandIndex] = b + 1;
+                }
+            }
+        }
+        m_bandsInitialized = true;
+    }
+
+    size_t blockSize = m_blockSize;
+    size_t numBands = m_bandHistograms.size();
+
+    for (size_t frame = 0; frame < numFrames; ++frame) {
+        double* frameData = &m_inputBuffer[frame * blockSize];
+        m_fft->forward(frameData, m_fftOut.data());
+        
+        // Optimized loop: Iterate bands
+        for (size_t band = 0; band < numBands; ++band) {
+            int start = m_bandStartBins[band];
+            int end = m_bandEndBins[band];
+            
+            if (start != -1 && end != -1) {
+                for (int b = start; b < end; ++b) {
+                    // FFT bin index is b+1
+                    double real = m_fftOut[2 * (b + 1)];
+                    double imag = m_fftOut[2 * (b + 1) + 1];
+                    double magnitude = std::sqrt(real * real + imag * imag);
+                    
+                    if (magnitude > m_globalMax) m_globalMax = magnitude;
+                    
+                    double db = -200.0;
+                    if (magnitude > 1e-10) {
+                        db = 20.0 * std::log10(magnitude);
+                    }
+                    
+                    // Map to bin: -200 to +100 dB relative to 1.0
+                    int bin = static_cast<int>((db + 200.0) * 10.0);
+                    if (bin < 0) bin = 0;
+                    if (bin >= 3000) bin = 2999;
+                    
+                    m_bandHistograms[band][bin]++;
+                }
+            }
+        }
+        
+        m_frameCount++;
+    }
 }
 
 Vamp::Plugin::FeatureSet
@@ -219,7 +296,6 @@ ADIPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
     
-    // Process any remaining frames in the buffer
     if (!m_inputBuffer.empty()) {
         size_t remainingFrames = m_inputBuffer.size() / m_blockSize;
         if (remainingFrames > 0) {
@@ -228,102 +304,50 @@ ADIPlugin::getRemainingFeatures()
         m_inputBuffer.clear();
     }
     
-    if (m_spectralData.empty()) return fs;
+    if (m_frameCount == 0) return fs;
 
-    // 1. Find Global Max
-    // Optimized: m_globalMax is tracked in ACIBasePlugin
-    size_t numFrames = m_spectralData.size() / m_numBins;
-    float globalMax = m_globalMax;
-    
-    // std::cerr << "ADIPlugin: numFrames=" << numFrames << " globalMax=" << globalMax << std::endl;
-
-    // 2. Calculate Threshold
-    // scikit-maad: Sxx_dB = amplitude2dB(Sxx/max(Sxx))
-    // threshold is in dB.
-    // val_dB = 20 * log10(val / globalMax)
-    // val > globalMax * 10^(threshold/20)
-    
-    float linearThreshold = 0.0f;
-    if (globalMax > 0) {
-        linearThreshold = globalMax * std::pow(10.0f, m_dbThreshold / 20.0f);
-    } else {
-        linearThreshold = 1e9f; // Unreachable
+    // Calculate Threshold relative to Global Max
+    double globalMaxDB = -200.0;
+    if (m_globalMax > 1e-10) {
+        globalMaxDB = 20.0 * std::log10(m_globalMax);
     }
     
-    // 3. Calculate Scores per Band
-    // N = floor((fmax-fmin)/bin_step)
-    int numBands = static_cast<int>(std::floor((m_maxFreq - m_minFreq) / m_binStep));
-    if (numBands < 1) numBands = 1;
-
+    double thresholdDB = globalMaxDB + m_dbThreshold;
+    
+    // Convert threshold to histogram bin
+    int thresholdBin = static_cast<int>((thresholdDB + 200.0) * 10.0);
+    
+    // Calculate band proportions
+    size_t numBands = m_bandHistograms.size();
     std::vector<double> scores(numBands, 0.0);
-    std::vector<int> binCounts(numBands, 0); // Total bins in each band (across all time)
-    std::vector<int> hitCounts(numBands, 0); // Bins > threshold
-    
-    float binResolution = (m_inputSampleRate / 2.0f) / (m_blockSize / 2);
-    
-    // Map bands to bin ranges
-    // Instead of per-bin lookup, we precompute which bins belong to which band.
-    struct BandRange {
-        int startBin;
-        int endBin; // Exclusive
-    };
-    std::vector<BandRange> bandRanges(numBands, {-1, -1});
-
-    for (size_t b = 0; b < m_numBins; ++b) {
-        // Fix: m_spectralData stores bins 1 to N/2. Index b is bin b+1.
-        float freq = (b + 1) * binResolution;
-        
-        if (freq >= m_minFreq && freq < m_maxFreq) {
-            int bandIndex = static_cast<int>(std::floor((freq - m_minFreq) / m_binStep));
-            if (bandIndex >= 0 && bandIndex < numBands) {
-                if (bandRanges[bandIndex].startBin == -1) {
-                    bandRanges[bandIndex].startBin = b;
-                }
-                bandRanges[bandIndex].endBin = b + 1;
-            }
-        }
-    }
-    
-    // Iterate
-    // Optimized loop: Iterate frames, then bands, then bins in range.
-    for (size_t t = 0; t < numFrames; ++t) {
-        size_t frameOffset = t * m_numBins;
-        
-        for (int band = 0; band < numBands; ++band) {
-            int start = bandRanges[band].startBin;
-            int end = bandRanges[band].endBin;
-            
-            if (start != -1 && end != -1) {
-                int count = end - start;
-                binCounts[band] += count;
-                
-                for (int b = start; b < end; ++b) {
-                    if (m_spectralData[frameOffset + b] > linearThreshold) {
-                        hitCounts[band]++;
-                    }
-                }
-            }
-        }
-    }
-    
-    // Calculate scores (proportions)
     double sumScores = 0.0;
-    for (int i = 0; i < numBands; ++i) {
-        if (binCounts[i] > 0) {
-            scores[i] = static_cast<double>(hitCounts[i]) / binCounts[i];
+    
+    for (size_t i = 0; i < numBands; ++i) {
+        long count = 0;
+        long totalCells = 0;
+        
+        for (size_t bin = 0; bin < m_bandHistograms[i].size(); ++bin) {
+            totalCells += m_bandHistograms[i][bin];
+            if (static_cast<int>(bin) > thresholdBin) {
+                count += m_bandHistograms[i][bin];
+            }
+        }
+        
+        if (totalCells > 0) {
+            scores[i] = static_cast<double>(count) / static_cast<double>(totalCells);
         } else {
             scores[i] = 0.0;
         }
         sumScores += scores[i];
     }
     
-    // 4. Calculate Index
+    // Calculate Index
     double adi = 0.0;
     
     if (sumScores > 0) {
         // Normalize scores to probability distribution
         std::vector<double> p(numBands);
-        for (int i = 0; i < numBands; ++i) {
+        for (size_t i = 0; i < numBands; ++i) {
             p[i] = scores[i] / sumScores;
         }
         
@@ -352,7 +376,7 @@ ADIPlugin::getRemainingFeatures()
     
     Feature f;
     f.hasTimestamp = true;
-    f.timestamp = Vamp::RealTime::frame2RealTime(m_frameCount * m_stepSize, m_inputSampleRate);
+    f.timestamp = Vamp::RealTime::frame2RealTime(0, m_inputSampleRate);
     f.values.push_back(static_cast<float>(adi));
     
     fs[0].push_back(f);

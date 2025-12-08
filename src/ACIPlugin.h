@@ -1,13 +1,13 @@
-#ifndef _ADI_PLUGIN_H_
-#define _ADI_PLUGIN_H_
+#ifndef _ACI_PLUGIN_H_
+#define _ACI_PLUGIN_H_
 
 #include "EcoacousticSpectralPlugin.h"
 
-class ADIPlugin : public EcoacousticSpectralPlugin
+class ACIPlugin : public EcoacousticSpectralPlugin
 {
 public:
-    ADIPlugin(float inputSampleRate);
-    virtual ~ADIPlugin();
+    ACIPlugin(float inputSampleRate);
+    virtual ~ACIPlugin();
 
     string getIdentifier() const;
     string getName() const;
@@ -28,26 +28,10 @@ public:
 
     bool initialise(size_t channels, size_t stepSize, size_t blockSize);
 
-    size_t getPreferredBlockSize() const;
-    size_t getPreferredStepSize() const;
-
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t numFrames);
-
-    // Parameters
-    float m_minFreq;
-    float m_maxFreq;
-    float m_binStep; // Hz
-    float m_dbThreshold;
-    int m_indexType; // 0: Shannon, 1: Simpson, 2: Inverse Simpson
-
-    // Histogram-based optimization
-    std::vector<std::vector<int>> m_bandHistograms;
-    bool m_bandsInitialized;
-    std::vector<int> m_bandStartBins;
-    std::vector<int> m_bandEndBins;
+    int m_nbWindows;
 };
 
 #endif

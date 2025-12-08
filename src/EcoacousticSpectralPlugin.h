@@ -1,5 +1,5 @@
-#ifndef _ACI_BASE_PLUGIN_H_
-#define _ACI_BASE_PLUGIN_H_
+#ifndef _ECOACOUSTIC_SPECTRAL_PLUGIN_H_
+#define _ECOACOUSTIC_SPECTRAL_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
 #include "vamp-sdk/FFT.h"
@@ -9,11 +9,11 @@
 using std::string;
 using std::vector;
 
-class ACIBasePlugin : public Vamp::Plugin
+class EcoacousticSpectralPlugin : public Vamp::Plugin
 {
 public:
-    ACIBasePlugin(float inputSampleRate);
-    virtual ~ACIBasePlugin();
+    EcoacousticSpectralPlugin(float inputSampleRate);
+    virtual ~EcoacousticSpectralPlugin();
 
     // Common Plugin Interface
     InputDomain getInputDomain() const;

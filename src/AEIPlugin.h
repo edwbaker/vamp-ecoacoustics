@@ -1,9 +1,9 @@
 #ifndef _AEI_PLUGIN_H_
 #define _AEI_PLUGIN_H_
 
-#include "ACIBasePlugin.h"
+#include "EcoacousticSpectralPlugin.h"
 
-class AEIPlugin : public ACIBasePlugin
+class AEIPlugin : public EcoacousticSpectralPlugin
 {
 public:
     AEIPlugin(float inputSampleRate);
@@ -34,14 +34,19 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
+    void processBatch(size_t numFrames);
+
     // Parameters
     float m_minFreq;
     float m_maxFreq;
     float m_binStep; // Hz
     float m_dbThreshold;
 
-    // We need to store all data to normalize by global max
-    // ACIBasePlugin already has m_spectralData
+    // Histogram-based optimization
+    std::vector<std::vector<int>> m_bandHistograms;
+    bool m_bandsInitialized;
+    std::vector<int> m_bandStartBins;
+    std::vector<int> m_bandEndBins;
 };
 
 #endif

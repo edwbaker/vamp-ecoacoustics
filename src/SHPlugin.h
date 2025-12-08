@@ -1,13 +1,13 @@
-#ifndef _ADI_PLUGIN_H_
-#define _ADI_PLUGIN_H_
+#ifndef _SH_PLUGIN_H_
+#define _SH_PLUGIN_H_
 
 #include "EcoacousticSpectralPlugin.h"
 
-class ADIPlugin : public EcoacousticSpectralPlugin
+class SHPlugin : public EcoacousticSpectralPlugin
 {
 public:
-    ADIPlugin(float inputSampleRate);
-    virtual ~ADIPlugin();
+    SHPlugin(float inputSampleRate);
+    virtual ~SHPlugin();
 
     string getIdentifier() const;
     string getName() const;
@@ -33,21 +33,14 @@ public:
 
     FeatureSet getRemainingFeatures();
 
+    // Public method to compute SH, useful for HPlugin
+    double computeSH() const;
+
 protected:
     void processBatch(size_t numFrames);
 
-    // Parameters
-    float m_minFreq;
-    float m_maxFreq;
-    float m_binStep; // Hz
-    float m_dbThreshold;
-    int m_indexType; // 0: Shannon, 1: Simpson, 2: Inverse Simpson
-
-    // Histogram-based optimization
-    std::vector<std::vector<int>> m_bandHistograms;
-    bool m_bandsInitialized;
-    std::vector<int> m_bandStartBins;
-    std::vector<int> m_bandEndBins;
+    // Accumulator for Mean Spectrum
+    std::vector<double> m_accumulatedSpectrum;
 };
 
 #endif
