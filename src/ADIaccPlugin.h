@@ -1,9 +1,15 @@
 #ifndef _ADI_ACC_PLUGIN_H_
 #define _ADI_ACC_PLUGIN_H_
 
-#include "EcoacousticSpectralPlugin.h"
+#include "vamp-sdk/Plugin.h"
+#include "vamp-sdk/FFT.h"
+#include <vector>
+#include <string>
 
-class ADIaccPlugin : public EcoacousticSpectralPlugin
+using std::string;
+using std::vector;
+
+class ADIaccPlugin : public Vamp::Plugin
 {
 public:
     ADIaccPlugin(float inputSampleRate);
@@ -16,6 +22,10 @@ public:
     int getPluginVersion() const;
     string getCopyright() const;
 
+    InputDomain getInputDomain() const;
+    size_t getMinChannelCount() const;
+    size_t getMaxChannelCount() const;
+
     ParameterList getParameterDescriptors() const;
     float getParameter(string identifier) const;
     void setParameter(string identifier, float value);
@@ -27,6 +37,8 @@ public:
     OutputList getOutputDescriptors() const;
 
     bool initialise(size_t channels, size_t stepSize, size_t blockSize);
+    void reset();
+    FeatureSet process(const float *const *inputBuffers, Vamp::RealTime timestamp);
 
     size_t getPreferredBlockSize() const;
     size_t getPreferredStepSize() const;
@@ -34,17 +46,45 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t numFrames);
+    void processBatch(size_t channel, size_t numFrames);
+
+    // Internal
+    size_t m_channels;
+    size_t m_blockSize;
+    size_t m_stepSize;
+    size_t m_numBins;
+    
+    // Per-channel tracking
+    std::vector<size_t> m_frameCount_ch;
+    std::vector<float> m_globalMax_ch; // Track global maximum magnitude per channel
+    std::vector<size_t> m_sampleCount_ch; // Track actual samples received per channel
+
+    // FFT
+    Vamp::FFTReal *m_fft;
+    std::vector<double> m_fftOut;
+    std::vector<double> m_fftInput;  // Reusable FFT input buffer
+    std::vector<float> m_window;     // Float for memory efficiency
+    std::vector<std::vector<int>> m_binToBands;  // Pre-computed bin-to-bands mapping (each bin can be in multiple bands)
+
+    // Batch processing - per channel
+    size_t m_batchSize;
+    std::vector<std::vector<double>> m_inputBuffer_ch; 
+    std::vector<std::vector<float>> m_spectralData_ch;
+    
+    enum WindowType {
+        Hanning,
+        Hamming
+    };
+    WindowType m_windowType;
 
     // Parameters
+    float m_minFreq;
+    float m_maxFreq;
     float m_dbThreshold;
     float m_freqStep; // Hz
 
-    // Histogram-based optimization
-    // We store a histogram of dB values for each band
-    // This allows calculating the threshold count relative to Global Max at the end
-    // without storing the full spectral data.
-    std::vector<std::vector<int>> m_bandHistograms;
+    // Histogram-based optimization - per channel
+    std::vector<std::vector<std::vector<int>>> m_bandHistograms_ch;
     bool m_bandsInitialized;
     std::vector<int> m_bandStartBins;
     std::vector<int> m_bandEndBins;

@@ -1,10 +1,15 @@
 #ifndef _H_PLUGIN_H_
 #define _H_PLUGIN_H_
 
-#include "SHPlugin.h"
+#include "vamp-sdk/Plugin.h"
 #include "THPlugin.h"
+#include <vector>
 
-class HPlugin : public SHPlugin
+using std::string;
+
+// HPlugin computes Total Entropy H = SH * TH matching seewave::H()
+// This uses meanspec() for SH (STFT averaged spectrum) not spec() (full FFT)
+class HPlugin : public Vamp::Plugin
 {
 public:
     HPlugin(float inputSampleRate);
@@ -17,8 +22,19 @@ public:
     int getPluginVersion() const;
     string getCopyright() const;
 
+    InputDomain getInputDomain() const;
     size_t getPreferredBlockSize() const;
     size_t getPreferredStepSize() const;
+    size_t getMinChannelCount() const;
+    size_t getMaxChannelCount() const;
+
+    ParameterList getParameterDescriptors() const;
+    float getParameter(string identifier) const;
+    void setParameter(string identifier, float value);
+
+    ProgramList getPrograms() const;
+    string getCurrentProgram() const;
+    void selectProgram(string name);
 
     OutputList getOutputDescriptors() const;
 
@@ -31,7 +47,22 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
+    size_t m_blockSize;
+    size_t m_stepSize;
+    size_t m_wl;  // Window length for meanspec (default 512)
+    
+    // Accumulated spectra for meanspec
+    std::vector<double> m_sumSpectrum;
+    size_t m_spectrumCount;
+    std::vector<float> m_window;
+    
+    // For TH computation
     THPlugin* m_thPlugin;
+    
+    // Buffer for accumulating samples for TH
+    std::vector<double> m_inputBuffer;
+    
+    double computeSH() const;
 };
 
 #endif

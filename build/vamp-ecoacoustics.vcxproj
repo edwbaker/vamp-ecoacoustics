@@ -1,0 +1,400 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{602858C5-F0E6-35DB-AC19-D239F85699CC}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>vamp-ecoacoustics</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">vamp-ecoacoustics.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">vamp-ecoacoustics</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">vamp-ecoacoustics.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">vamp-ecoacoustics</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">vamp-ecoacoustics.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">vamp-ecoacoustics</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">vamp-ecoacoustics.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">vamp-ecoacoustics</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;CMAKE_INTDIR="Debug";vamp_ecoacoustics_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;CMAKE_INTDIR=\"Debug\";vamp_ecoacoustics_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/Debug/vamp-ecoacoustics.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ModuleDefinitionFile>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/src/vamp-ecoacoustics.def</ModuleDefinitionFile>
+      <ProgramDataBaseFile>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/Debug/vamp-ecoacoustics.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem></SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="Release";vamp_ecoacoustics_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"Release\";vamp_ecoacoustics_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/Release/vamp-ecoacoustics.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ModuleDefinitionFile>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/src/vamp-ecoacoustics.def</ModuleDefinitionFile>
+      <ProgramDataBaseFile>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/Release/vamp-ecoacoustics.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem></SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="MinSizeRel";vamp_ecoacoustics_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"MinSizeRel\";vamp_ecoacoustics_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/MinSizeRel/vamp-ecoacoustics.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ModuleDefinitionFile>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/src/vamp-ecoacoustics.def</ModuleDefinitionFile>
+      <ProgramDataBaseFile>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/MinSizeRel/vamp-ecoacoustics.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem></SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR="RelWithDebInfo";vamp_ecoacoustics_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;CMAKE_INTDIR=\"RelWithDebInfo\";vamp_ecoacoustics_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\ext\vamp-sdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/RelWithDebInfo/vamp-ecoacoustics.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ModuleDefinitionFile>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/src/vamp-ecoacoustics.def</ModuleDefinitionFile>
+      <ProgramDataBaseFile>C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/RelWithDebInfo/vamp-ecoacoustics.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem></SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\cmake.exe -SC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins -BC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build --check-stamp-file C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeCCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeCXXCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeRCCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\cmake.exe -SC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins -BC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build --check-stamp-file C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeCCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeCXXCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeRCCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\cmake.exe -SC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins -BC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build --check-stamp-file C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeCCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeCXXCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeRCCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\cmake.exe -SC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins -BC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build --check-stamp-file C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeCCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeCXXCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeRCCompiler.cmake;C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\4.1.2\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\ACIPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\ACIaccPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\ADIaccPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\AEIaccPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\BIaccPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\FFT.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\HPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\NDSIPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\PluginAdapter.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\RealTime.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\SHPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\THPlugin.cpp" />
+    <ClCompile Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\plugins.cpp" />
+    <None Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\vamp-ecoacoustics.def" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\ACIPlugin.h" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\ACIaccPlugin.h" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\ADIaccPlugin.h" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\AEIaccPlugin.h" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\BIaccPlugin.h" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\HPlugin.h" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\NDSIPlugin.h" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\SHPlugin.h" />
+    <ClInclude Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\src\THPlugin.h" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\edwab\iCloudDrive\Documents\Coding\Ecoacoustic-Vamp-Plugins\build\ZERO_CHECK.vcxproj">
+      <Project>{C9B6C975-F879-3DE1-B7E7-9EC9FD8325C1}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

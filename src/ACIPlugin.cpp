@@ -1,23 +1,69 @@
 // ACIPlugin.cpp - Acoustic Complexity Index (Fast FFT)
+// Matches seewave::ACI
 
 #include "ACIPlugin.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
-#include <iostream>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 ACIPlugin::ACIPlugin(float inputSampleRate) :
-    EcoacousticSpectralPlugin(inputSampleRate),
-    m_nbWindows(1)
+    Plugin(inputSampleRate),
+    m_nbWindows(1),
+    m_channels(0),
+    m_blockSize(0),
+    m_stepSize(0),
+    m_numBins(0),
+    m_frameCount(0),
+    m_globalMaxSq(0.0f),
+    m_minFreq(0),
+    m_maxFreq(0),
+    m_fft(nullptr),
+    m_hasFirstFrame(false),
+    m_spectralWriteIdx(0),
+    m_windowType(Hamming)
 {
 }
 
 ACIPlugin::~ACIPlugin()
 {
+    if (m_fft) {
+        delete m_fft;
+        m_fft = nullptr;
+    }
+}
+
+Vamp::Plugin::InputDomain
+ACIPlugin::getInputDomain() const
+{
+    return TimeDomain;
+}
+
+size_t
+ACIPlugin::getPreferredBlockSize() const
+{
+    return 512;
+}
+
+size_t
+ACIPlugin::getPreferredStepSize() const
+{
+    return 512;
+}
+
+size_t
+ACIPlugin::getMinChannelCount() const
+{
+    return 1;
+}
+
+size_t
+ACIPlugin::getMaxChannelCount() const
+{
+    return 2;  // Accept stereo - we use channel 1 only, matching seewave
 }
 
 string
@@ -41,7 +87,7 @@ ACIPlugin::getDescription() const
 string
 ACIPlugin::getMaker() const
 {
-    return "ReVAMP";
+    return "Ecoacoustic-Vamp-Plugins";
 }
 
 int
@@ -53,7 +99,7 @@ ACIPlugin::getPluginVersion() const
 string
 ACIPlugin::getCopyright() const
 {
-    return "MIT License";
+    return "(C) Ed Baker 2025. Licensed under GPL (>=2).";
 }
 
 Vamp::Plugin::ParameterList
@@ -62,7 +108,7 @@ ACIPlugin::getParameterDescriptors() const
     ParameterList list;
 
     ParameterDescriptor d;
-    d.identifier = "minfreq";
+    d.identifier = "minFreq";
     d.name = "Minimum Frequency";
     d.description = "Minimum frequency (kHz) to include in calculation";
     d.unit = "kHz";
@@ -72,17 +118,17 @@ ACIPlugin::getParameterDescriptors() const
     d.isQuantized = false;
     list.push_back(d);
 
-    d.identifier = "maxfreq";
+    d.identifier = "maxFreq";
     d.name = "Maximum Frequency";
     d.description = "Maximum frequency (kHz) to include in calculation";
     d.unit = "kHz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2000.0f;
-    d.defaultValue = 0; // 0 means max
+    d.defaultValue = 0;
     d.isQuantized = false;
     list.push_back(d);
 
-    d.identifier = "nbwindows";
+    d.identifier = "nbWindows";
     d.name = "Number of Windows";
     d.description = "Number of time windows to divide the file into";
     d.unit = "";
@@ -99,20 +145,20 @@ ACIPlugin::getParameterDescriptors() const
 float
 ACIPlugin::getParameter(string identifier) const
 {
-    if (identifier == "minfreq") return m_minFreq;
-    if (identifier == "maxfreq") return m_maxFreq;
-    if (identifier == "nbwindows") return m_nbWindows;
+    if (identifier == "minFreq") return m_minFreq;
+    if (identifier == "maxFreq") return m_maxFreq;
+    if (identifier == "nbWindows") return static_cast<float>(m_nbWindows);
     return 0;
 }
 
 void
 ACIPlugin::setParameter(string identifier, float value)
 {
-    if (identifier == "minfreq") {
+    if (identifier == "minFreq") {
         m_minFreq = value;
-    } else if (identifier == "maxfreq") {
+    } else if (identifier == "maxFreq") {
         m_maxFreq = value;
-    } else if (identifier == "nbwindows") {
+    } else if (identifier == "nbWindows") {
         m_nbWindows = static_cast<int>(value);
     }
 }
@@ -133,6 +179,7 @@ ACIPlugin::getCurrentProgram() const
 void
 ACIPlugin::selectProgram(string name)
 {
+    (void)name;
 }
 
 Vamp::Plugin::OutputList
@@ -159,13 +206,102 @@ ACIPlugin::getOutputDescriptors() const
 bool
 ACIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
-    if (!EcoacousticSpectralPlugin::initialise(channels, stepSize, blockSize)) return false;
+    if (channels < getMinChannelCount() ||
+        channels > getMaxChannelCount()) return false;
 
-    // Reserve spectral data (heuristic: assume 1 minute of audio at 44.1kHz with 512 hop)
-    // ~5000 frames * 256 bins = 1.2M floats = 5MB. Safe to reserve some.
-    m_spectralData.reserve(10000 * m_numBins);
+    m_channels = channels;
+    m_blockSize = blockSize;
+    m_stepSize = stepSize;
+    m_frameCount = 0;
+    m_globalMaxSq = 0.0f;
+    m_numBins = blockSize / 2 + 1;
+    m_hasFirstFrame = false;
+    m_spectralWriteIdx = 0;
+
+    // Initialize FFT
+    if (m_fft) delete m_fft;
+    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
+    m_fftInput.resize(blockSize);
+    m_fftOut.resize(blockSize + 2);
+    
+    // Pre-compute window
+    m_window.resize(m_blockSize);
+    double denom = static_cast<double>(m_blockSize - 1);
+    if (m_windowType == Hamming) {
+        for (size_t i = 0; i < m_blockSize; ++i) {
+            m_window[i] = static_cast<float>(0.54 - 0.46 * std::cos(2.0 * M_PI * i / denom));
+        }
+    } else {
+        for (size_t i = 0; i < m_blockSize; ++i) {
+            m_window[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * M_PI * i / denom)));
+        }
+    }
+
+    // Streaming mode buffers (for single window - most common case)
+    m_prevFrame.resize(m_numBins, 0.0f);
+    m_sumIntensity.resize(m_numBins, 0.0f);
+    m_sumAbsDiff.resize(m_numBins, 0.0f);
+    
+    // Multi-window mode: reserve spectral data storage
+    if (m_nbWindows > 1) {
+        m_spectralData.reserve(4096 * m_numBins);
+    }
 
     return true;
+}
+
+void
+ACIPlugin::reset()
+{
+    m_spectralData.clear();
+    m_frameCount = 0;
+    m_globalMaxSq = 0.0f;
+    m_spectralWriteIdx = 0;
+    m_hasFirstFrame = false;
+    std::fill(m_prevFrame.begin(), m_prevFrame.end(), 0.0f);
+    std::fill(m_sumIntensity.begin(), m_sumIntensity.end(), 0.0f);
+    std::fill(m_sumAbsDiff.begin(), m_sumAbsDiff.end(), 0.0f);
+}
+
+void ACIPlugin::processFrame(const float* input)
+{
+    // Apply window and copy to FFT input buffer
+    for (size_t i = 0; i < m_blockSize; ++i) {
+        m_fftInput[i] = static_cast<double>(input[i] * m_window[i]);
+    }
+    
+    // Perform FFT
+    m_fft->forward(m_fftInput.data(), m_fftOut.data());
+    
+    size_t halfBlock = m_blockSize / 2;
+    
+    // Store spectral data (magnitude squared)
+    size_t requiredSize = m_spectralWriteIdx + m_numBins;
+    if (m_spectralData.size() < requiredSize) {
+        m_spectralData.resize(requiredSize);
+    }
+    
+    float* spectralPtr = m_spectralData.data() + m_spectralWriteIdx;
+    for (size_t i = 0; i <= halfBlock; ++i) {
+        double real = m_fftOut[2 * i];
+        double imag = m_fftOut[2 * i + 1];
+        float magSq = static_cast<float>(real * real + imag * imag);
+        spectralPtr[i] = magSq;
+        if (magSq > m_globalMaxSq) m_globalMaxSq = magSq;
+    }
+    m_spectralWriteIdx = requiredSize;
+    m_frameCount++;
+}
+
+Vamp::Plugin::FeatureSet
+ACIPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
+{
+    FeatureSet fs;
+    (void)timestamp;
+    
+    processFrame(inputBuffers[0]);
+    
+    return fs;
 }
 
 Vamp::Plugin::FeatureSet
@@ -173,70 +309,37 @@ ACIPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
     
-    // Process any remaining frames in the buffer
-    if (!m_inputBuffer.empty()) {
-        size_t remainingFrames = m_inputBuffer.size() / m_blockSize;
-        if (remainingFrames > 0) {
-            processBatch(remainingFrames);
-        }
-        m_inputBuffer.clear();
-    }
-    
-    if (m_spectralData.empty()) return fs;
+    if (m_spectralWriteIdx == 0) return fs;
 
+    // Calculate number of frames currently stored
+    size_t numFrames = m_spectralWriteIdx / m_numBins;
+    
     // Handle padding frames
     size_t paddingFrames = 0;
     if (m_stepSize > 0) {
         paddingFrames = m_blockSize / m_stepSize;
     }
     
-    // Calculate number of frames currently stored
-    size_t numFrames = m_spectralData.size() / m_numBins;
-    
     if (numFrames > paddingFrames) {
         numFrames -= paddingFrames;
     } else {
         numFrames = 0;
     }
+    
+    if (numFrames < 2) return fs;
 
-    if (m_stepSize < m_blockSize && numFrames > 0) {
-        // Append a frame of zeros (flattened)
-        // m_numBins zeros
-        m_spectralData.insert(m_spectralData.begin() + numFrames * m_numBins, m_numBins, 0.0f);
-        numFrames++;
-    }
-
-    // Normalize by global maximum
-    // Optimized: Single pass over the flattened vector
-    // Only up to numFrames * m_numBins
-    size_t totalElements = numFrames * m_numBins;
-    
-    float globalMax = 0.0f;
-    for (size_t i = 0; i < totalElements; ++i) {
-        if (m_spectralData[i] > globalMax) {
-            globalMax = m_spectralData[i];
-        }
-    }
-    
-    if (globalMax > 0) {
-        float invMax = 1.0f / globalMax;
-        for (size_t i = 0; i < totalElements; ++i) {
-            m_spectralData[i] *= invMax;
-        }
-    }
-    
-    // Apply frequency limits
-    // m_spectralData is flattened: [Frame0_Bin0, Frame0_Bin1... Frame1_Bin0...]
-    // m_numBins is the number of bins per frame (blockSize/2)
-    
-    size_t minBinIndex = 0;
+    // Apply frequency limits 
+    size_t minBinIndex = 1; // Default to 1 to exclude DC
     size_t maxBinIndex = m_numBins - 1;
     
     if (m_minFreq > 0 || m_maxFreq > 0) {
         float binResolution = (m_inputSampleRate / 2.0f) / (m_blockSize / 2);
         
         if (m_minFreq > 0) {
-            minBinIndex = static_cast<size_t>(m_minFreq * 1000.0f / binResolution);
+            size_t calculatedMin = static_cast<size_t>(m_minFreq * 1000.0f / binResolution);
+            if (calculatedMin > minBinIndex) {
+                minBinIndex = calculatedMin;
+            }
         }
         if (m_maxFreq > 0) {
             maxBinIndex = static_cast<size_t>(m_maxFreq * 1000.0f / binResolution);
@@ -246,53 +349,63 @@ ACIPlugin::getRemainingFeatures()
         }
     }
     
-    // Calculate ACI
-    // Optimized: Iterate Time (outer) -> Frequency (inner) for cache locality
-    // But ACI requires summing differences per frequency bin first?
-    // ACI_tot = Sum_k ( Sum_t |I_k(t+1) - I_k(t)| / Sum_t I_k(t) )
-    // We need Sum_t I_k(t) (Total Intensity per bin) and Sum_t |Diff| (Total Difference per bin)
+    float* data = m_spectralData.data();
+    size_t totalElements = numFrames * m_numBins;
+
+    // Convert magnitude squared to normalized magnitude in single pass
+    // Using pre-computed global max from processing
+    if (m_globalMaxSq > 0) {
+        float invMax = 1.0f / std::sqrt(m_globalMaxSq);
+        for (size_t i = 0; i < totalElements; ++i) {
+            data[i] = std::sqrt(data[i]) * invMax;
+        }
+    }
+
+    if (m_stepSize < m_blockSize) {
+        size_t insertPos = numFrames * m_numBins;
+        if (m_spectralData.size() < insertPos + m_numBins) {
+            m_spectralData.resize(insertPos + m_numBins, 0.0f);
+        } else {
+            std::fill(m_spectralData.begin() + insertPos, 
+                      m_spectralData.begin() + insertPos + m_numBins, 0.0f);
+        }
+        numFrames++;
+        data = m_spectralData.data();
+    }
     
-    std::vector<float> acis(m_nbWindows, 0.0f);
+    float totalACI = 0.0f;
+    size_t numActiveBins = maxBinIndex - minBinIndex + 1;
     
     for (int j = 0; j < m_nbWindows; ++j) {
         size_t l = numFrames;
-        size_t startFrame = static_cast<size_t>(std::floor(l / m_nbWindows * j));
-        size_t endFrame = static_cast<size_t>(std::floor(l / m_nbWindows * (j + 1)));
+        size_t startFrame = static_cast<size_t>(l / m_nbWindows * j);
+        size_t endFrame = static_cast<size_t>(l / m_nbWindows * (j + 1));
         
-        if (startFrame >= endFrame) continue;
-        
-        size_t numSteps = endFrame - startFrame;
-        if (numSteps < 2) continue;
+        if (startFrame >= endFrame || (endFrame - startFrame) < 2) continue;
 
-        // Accumulators for each bin in the frequency range
-        size_t numActiveBins = maxBinIndex - minBinIndex + 1;
-        std::vector<float> sumIntensity(numActiveBins, 0.0f);
-        std::vector<float> sumAbsDiff(numActiveBins, 0.0f);
+        // Stack allocation for accumulators
+        float stackSumInt[512], stackSumDiff[512];
+        float* sumIntensity = (numActiveBins <= 512) ? stackSumInt : new float[numActiveBins];
+        float* sumAbsDiff = (numActiveBins <= 512) ? stackSumDiff : new float[numActiveBins];
         
-        // Pass 1: Calculate Sum Intensity and Sum Abs Diff
-        // We iterate frames (outer) to be cache friendly with the flattened vector
+        std::fill(sumIntensity, sumIntensity + numActiveBins, 0.0f);
+        std::fill(sumAbsDiff, sumAbsDiff + numActiveBins, 0.0f);
         
-        // First frame of the window
-        size_t firstFrameIdx = startFrame * m_numBins;
+        const float* firstFrame = data + startFrame * m_numBins + minBinIndex;
         for (size_t b = 0; b < numActiveBins; ++b) {
-            sumIntensity[b] += m_spectralData[firstFrameIdx + minBinIndex + b];
+            sumIntensity[b] = firstFrame[b];
         }
         
-        // Subsequent frames
         for (size_t t = startFrame; t < endFrame - 1; ++t) {
-            size_t currentFrameIdx = t * m_numBins;
-            size_t nextFrameIdx = (t + 1) * m_numBins;
+            const float* currentFrame = data + t * m_numBins + minBinIndex;
+            const float* nextFrame = data + (t + 1) * m_numBins + minBinIndex;
             
             for (size_t b = 0; b < numActiveBins; ++b) {
-                float valCurrent = m_spectralData[currentFrameIdx + minBinIndex + b];
-                float valNext = m_spectralData[nextFrameIdx + minBinIndex + b];
-                
-                sumIntensity[b] += valNext; // Add next frame to intensity sum
-                sumAbsDiff[b] += std::abs(valNext - valCurrent);
+                sumIntensity[b] += nextFrame[b];
+                sumAbsDiff[b] += std::abs(nextFrame[b] - currentFrame[b]);
             }
         }
         
-        // Finalize ACI for this window
         float windowAci = 0.0f;
         for (size_t b = 0; b < numActiveBins; ++b) {
             if (sumIntensity[b] > 0) {
@@ -300,10 +413,13 @@ ACIPlugin::getRemainingFeatures()
             }
         }
         
-        acis[j] = windowAci;
+        totalACI += windowAci;
+        
+        if (numActiveBins > 512) {
+            delete[] sumIntensity;
+            delete[] sumAbsDiff;
+        }
     }
-    
-    float totalACI = std::accumulate(acis.begin(), acis.end(), 0.0f);
     
     Feature f;
     f.hasTimestamp = false;

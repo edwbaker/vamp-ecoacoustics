@@ -35,6 +35,12 @@
 */
 
 #include <vamp-sdk/FFT.h>
+
+/* Ensure pocketfft header does not enable multithreading support
+    (prevents pulling in <thread> / pthread dependencies such as libwinpthread). */
+#ifndef POCKETFFT_NO_MULTITHREADING
+#define POCKETFFT_NO_MULTITHREADING 1
+#endif
 #include "pocketfft_hdronly.h"
 
 #include <stdlib.h>

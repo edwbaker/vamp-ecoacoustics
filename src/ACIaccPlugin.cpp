@@ -1,26 +1,67 @@
 // ACIaccPlugin.cpp - Acoustic Complexity Index (Accumulated)
-// Matches soundecology::acoustic_complexity behavior
+// Matches soundecology::acoustic_complexity
 
 #include "ACIaccPlugin.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
-#include <iostream>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
-    EcoacousticSpectralPlugin(inputSampleRate),
-    m_clusterSize(5.0f), // Default 5 seconds
-    m_runningTotalACI(0.0f),
+    Plugin(inputSampleRate),
+    m_channels(0),
+    m_blockSize(0),
+    m_stepSize(0),
+    m_numBins(0),
+    m_frameCount(0),
+    m_minFreq(0),
+    m_maxFreq(0),
+    m_fft(nullptr),
+    m_windowType(Hamming),
+    m_clusterSize(5.0f),
     m_framesPerCluster(0)
 {
 }
 
 ACIaccPlugin::~ACIaccPlugin()
 {
+    if (m_fft) {
+        delete m_fft;
+        m_fft = nullptr;
+    }
+}
+
+Vamp::Plugin::InputDomain
+ACIaccPlugin::getInputDomain() const
+{
+    return TimeDomain;
+}
+
+size_t
+ACIaccPlugin::getPreferredBlockSize() const
+{
+    return 512;
+}
+
+size_t
+ACIaccPlugin::getPreferredStepSize() const
+{
+    return 512;
+}
+
+size_t
+ACIaccPlugin::getMinChannelCount() const
+{
+    return 1;
+}
+
+size_t
+ACIaccPlugin::getMaxChannelCount() const
+{
+    return 2;
 }
 
 string
@@ -38,13 +79,13 @@ ACIaccPlugin::getName() const
 string
 ACIaccPlugin::getDescription() const
 {
-    return "Calculates ACI matching soundecology::acoustic_complexity (accumulated over clusters).";
+    return "Calculates ACI matching soundecology::acoustic_complexity().";
 }
 
 string
 ACIaccPlugin::getMaker() const
 {
-    return "ReVAMP";
+    return "Ecoacoustic-Vamp-Plugins";
 }
 
 int
@@ -56,7 +97,7 @@ ACIaccPlugin::getPluginVersion() const
 string
 ACIaccPlugin::getCopyright() const
 {
-    return "MIT License";
+    return "(C) Ed Baker 2025. Licensed under GPL (>=2).";
 }
 
 Vamp::Plugin::ParameterList
@@ -65,7 +106,7 @@ ACIaccPlugin::getParameterDescriptors() const
     ParameterList list;
 
     ParameterDescriptor d;
-    d.identifier = "minfreq";
+    d.identifier = "minFreq";
     d.name = "Minimum Frequency";
     d.description = "Minimum frequency (kHz) to include in calculation";
     d.unit = "kHz";
@@ -75,7 +116,7 @@ ACIaccPlugin::getParameterDescriptors() const
     d.isQuantized = false;
     list.push_back(d);
 
-    d.identifier = "maxfreq";
+    d.identifier = "maxFreq";
     d.name = "Maximum Frequency";
     d.description = "Maximum frequency (kHz) to include in calculation";
     d.unit = "kHz";
@@ -85,13 +126,13 @@ ACIaccPlugin::getParameterDescriptors() const
     d.isQuantized = false;
     list.push_back(d);
 
-    d.identifier = "clustersize";
+    d.identifier = "clusterSize";
     d.name = "Cluster Size";
     d.description = "Size of the cluster in seconds (j)";
     d.unit = "s";
-    d.minValue = 0.1;
-    d.maxValue = 600;
-    d.defaultValue = 5.0;
+    d.minValue = 0.1f;
+    d.maxValue = 600.0f;
+    d.defaultValue = 5.0f;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -101,20 +142,20 @@ ACIaccPlugin::getParameterDescriptors() const
 float
 ACIaccPlugin::getParameter(string identifier) const
 {
-    if (identifier == "minfreq") return m_minFreq;
-    if (identifier == "maxfreq") return m_maxFreq;
-    if (identifier == "clustersize") return m_clusterSize;
+    if (identifier == "minFreq") return m_minFreq;
+    if (identifier == "maxFreq") return m_maxFreq;
+    if (identifier == "clusterSize") return m_clusterSize;
     return 0;
 }
 
 void
 ACIaccPlugin::setParameter(string identifier, float value)
 {
-    if (identifier == "minfreq") {
+    if (identifier == "minFreq") {
         m_minFreq = value;
-    } else if (identifier == "maxfreq") {
+    } else if (identifier == "maxFreq") {
         m_maxFreq = value;
-    } else if (identifier == "clustersize") {
+    } else if (identifier == "clusterSize") {
         m_clusterSize = value;
         // Update frames per cluster if we are already initialized
         if (m_stepSize > 0 && m_inputSampleRate > 0) {
@@ -141,6 +182,7 @@ ACIaccPlugin::getCurrentProgram() const
 void
 ACIaccPlugin::selectProgram(string name)
 {
+    (void)name;
 }
 
 Vamp::Plugin::OutputList
@@ -167,19 +209,49 @@ ACIaccPlugin::getOutputDescriptors() const
 bool
 ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
-    if (!EcoacousticSpectralPlugin::initialise(channels, stepSize, blockSize)) return false;
+    if (channels < getMinChannelCount() ||
+        channels > getMaxChannelCount()) return false;
 
-    // Calculate frames per cluster
+    m_channels = channels;
+    m_blockSize = blockSize;
+    m_stepSize = stepSize;
+    m_frameCount = 0;
+    m_numBins = blockSize / 2;
+
+    // Initialize FFT
+    if (m_fft) delete m_fft;
+    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
+    m_fftInput.resize(blockSize);
+    m_fftOut.resize(blockSize + 2);
+    
+    // Initialize per-channel storage
+    m_spectralData_ch.resize(m_channels);
+    m_totalSamplesReceived.resize(m_channels, 0);
+    m_lastBlockValidSamples.resize(m_channels, 0);
+    m_frameCount_ch.resize(m_channels, 0);
+    m_spectralWriteIdx_ch.resize(m_channels, 0);
+    
+    // Calculate frames per cluster for initial reserve
     float framesPerSecond = m_inputSampleRate / m_stepSize;
     m_framesPerCluster = static_cast<size_t>(std::floor(m_clusterSize * framesPerSecond));
     if (m_framesPerCluster < 1) m_framesPerCluster = 1;
-
-    // Reserve spectral data for at least one cluster + batch
-    m_spectralData.reserve((m_framesPerCluster + m_batchSize) * m_numBins);
     
-    // Resize accumulators
-    m_sumIntensity.resize(m_numBins);
-    m_sumAbsDiff.resize(m_numBins);
+    for (size_t ch = 0; ch < m_channels; ++ch) {
+        m_spectralData_ch[ch].reserve(4096 * m_numBins);
+    }
+    
+    // Pre-compute window (float for memory efficiency)
+    m_window.resize(m_blockSize);
+    double denom = static_cast<double>(m_blockSize - 1);
+    if (m_windowType == Hamming) {
+        for (size_t i = 0; i < m_blockSize; ++i) {
+            m_window[i] = static_cast<float>(0.54 - 0.46 * std::cos(2.0 * M_PI * i / denom));
+        }
+    } else {
+        for (size_t i = 0; i < m_blockSize; ++i) {
+            m_window[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * M_PI * i / denom)));
+        }
+    }
 
     return true;
 }
@@ -187,26 +259,99 @@ ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 void
 ACIaccPlugin::reset()
 {
-    EcoacousticSpectralPlugin::reset();
-    m_runningTotalACI = 0.0f;
+    for (size_t ch = 0; ch < m_channels; ++ch) {
+        m_spectralData_ch[ch].clear();
+        m_totalSamplesReceived[ch] = 0;
+        m_lastBlockValidSamples[ch] = 0;
+        m_frameCount_ch[ch] = 0;
+        m_spectralWriteIdx_ch[ch] = 0;
+    }
+    m_frameCount = 0;
 }
 
-void ACIaccPlugin::processBatch(size_t numFrames)
+void ACIaccPlugin::processFrame(size_t channel, const float* input)
 {
-    if (numFrames == 0) return;
+    // Apply window and copy to FFT input buffer
+    const float* win = m_window.data();
+    double* fftIn = m_fftInput.data();
+    for (size_t i = 0; i < m_blockSize; ++i) {
+        fftIn[i] = static_cast<double>(input[i]) * win[i];
+    }
+    
+    // Perform FFT
+    m_fft->forward(fftIn, m_fftOut.data());
+    
+    // Store magnitude squared (defer sqrt to getRemainingFeatures)
+    size_t requiredSize = m_spectralWriteIdx_ch[channel] + m_numBins;
+    if (m_spectralData_ch[channel].size() < requiredSize) {
+        m_spectralData_ch[channel].resize(requiredSize);
+    }
+    
+    float* spectralPtr = m_spectralData_ch[channel].data() + m_spectralWriteIdx_ch[channel];
+    const double* fftOut = m_fftOut.data();
+    for (size_t i = 0; i < m_numBins; ++i) {
+        double real = fftOut[2 * i];
+        double imag = fftOut[2 * i + 1];
+        spectralPtr[i] = static_cast<float>(real * real + imag * imag);
+    }
+    m_spectralWriteIdx_ch[channel] = requiredSize;
+    m_frameCount_ch[channel]++;
+}
 
-    // Compute magnitudes using base class helper
-    computeMagnitudes(numFrames);
+Vamp::Plugin::FeatureSet
+ACIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
+{
+    FeatureSet fs;
+    (void)timestamp;
+    
+    for (size_t ch = 0; ch < m_channels; ++ch) {
+        // Detect trailing zeros (padding) in this block
+        size_t validSamples = m_blockSize;
+        for (size_t i = m_blockSize; i > 0; --i) {
+            if (inputBuffers[ch][i-1] != 0.0f) {
+                validSamples = i;
+                break;
+            }
+            if (i == 1) validSamples = 0;
+        }
+        
+        m_totalSamplesReceived[ch] += m_blockSize;
+        m_lastBlockValidSamples[ch] = validSamples;
+        
+        processFrame(ch, inputBuffers[ch]);
+    }
+    
+    return fs;
+}
 
-    // Check if we have enough frames for a cluster
-    // m_spectralData contains flattened frames.
-    // Number of frames currently stored:
-    size_t storedFrames = m_spectralData.size() / m_numBins;
-
-    while (storedFrames >= m_framesPerCluster) {
-        // Process one cluster
-        size_t startFrame = 0;
-        size_t endFrame = m_framesPerCluster;
+Vamp::Plugin::FeatureSet
+ACIaccPlugin::getRemainingFeatures()
+{
+    FeatureSet fs;
+    
+    for (size_t ch = 0; ch < m_channels; ++ch) {
+        size_t totalFrames = m_spectralWriteIdx_ch[ch] / m_numBins;
+        if (totalFrames == 0) {
+            Feature f;
+            f.hasTimestamp = false;
+            f.values.push_back(0.0f);
+            fs[0].push_back(f);
+            continue;
+        }
+        
+        // Calculate duration based on true sample count (accounting for padding)
+        size_t paddingSamples = m_blockSize - m_lastBlockValidSamples[ch];
+        size_t trueSampleCount = m_totalSamplesReceived[ch] - paddingSamples;
+        double duration = static_cast<double>(trueSampleCount) / m_inputSampleRate;
+        
+        // Number of clusters = floor(duration / cluster_size)
+        size_t numClusters = static_cast<size_t>(std::floor(duration / m_clusterSize));
+        if (numClusters == 0) numClusters = 1;
+        
+        // Frames per cluster (I_per_j in soundecology)
+        double delta_tk = duration / totalFrames;
+        size_t framesPerCluster = static_cast<size_t>(std::floor(m_clusterSize / delta_tk));
+        if (framesPerCluster < 1) framesPerCluster = 1;
         
         // Determine frequency range
         size_t minBinIndex = 0;
@@ -222,77 +367,72 @@ void ACIaccPlugin::processBatch(size_t numFrames)
                 if (maxBinIndex >= m_numBins) maxBinIndex = m_numBins - 1;
             }
         }
-
+        
+        // Get raw pointer for faster access - data is magnitude squared
+        const float* data = m_spectralData_ch[ch].data();
         size_t numActiveBins = maxBinIndex - minBinIndex + 1;
         
-        // Reset accumulators
-        std::fill(m_sumIntensity.begin(), m_sumIntensity.end(), 0.0f);
-        std::fill(m_sumAbsDiff.begin(), m_sumAbsDiff.end(), 0.0f);
+        // Process clusters - matching soundecology's exact algorithm
+        float totalACI = 0.0f;
         
-        // First frame of the cluster
-        size_t firstFrameIdx = startFrame * m_numBins;
-        for (size_t b = 0; b < numActiveBins; ++b) {
-            m_sumIntensity[b] += m_spectralData[firstFrameIdx + minBinIndex + b];
-        }
+        // Stack allocation for accumulators
+        float stackSumI[512], stackSumD[512];
+        float* sumI = (numActiveBins <= 512) ? stackSumI : new float[numActiveBins];
+        float* sumD = (numActiveBins <= 512) ? stackSumD : new float[numActiveBins];
         
-        // Subsequent frames
-        for (size_t t = startFrame; t < endFrame - 1; ++t) {
-            size_t currentFrameIdx = t * m_numBins;
-            size_t nextFrameIdx = (t + 1) * m_numBins;
+        // Stack buffer for previous frame magnitudes (avoid recomputing sqrt)
+        float stackPrevMag[512];
+        float* prevMag = (numActiveBins <= 512) ? stackPrevMag : new float[numActiveBins];
+        
+        for (size_t cluster = 0; cluster < numClusters; ++cluster) {
+            size_t minFrame = cluster * framesPerCluster;
+            size_t maxFrame = (cluster + 1) * framesPerCluster;
             
+            if (maxFrame > totalFrames) break;
+            
+            // Reset accumulators
+            std::fill(sumI, sumI + numActiveBins, 0.0f);
+            std::fill(sumD, sumD + numActiveBins, 0.0f);
+            
+            // First frame: compute sqrt and store for reuse
+            const float* firstFrameSq = data + minFrame * m_numBins + minBinIndex;
             for (size_t b = 0; b < numActiveBins; ++b) {
-                float valCurrent = m_spectralData[currentFrameIdx + minBinIndex + b];
-                float valNext = m_spectralData[nextFrameIdx + minBinIndex + b];
+                float mag = std::sqrt(firstFrameSq[b]);
+                sumI[b] = mag;
+                prevMag[b] = mag;
+            }
+            
+            // Process subsequent frames - compute sqrt once per bin per frame
+            for (size_t t = minFrame + 1; t < maxFrame; ++t) {
+                const float* frameSq = data + t * m_numBins + minBinIndex;
                 
-                m_sumIntensity[b] += valNext;
-                m_sumAbsDiff[b] += std::abs(valNext - valCurrent);
+                for (size_t b = 0; b < numActiveBins; ++b) {
+                    float mag = std::sqrt(frameSq[b]);
+                    sumI[b] += mag;
+                    sumD[b] += std::abs(mag - prevMag[b]);
+                    prevMag[b] = mag;
+                }
+            }
+            
+            // ACI for this cluster
+            for (size_t b = 0; b < numActiveBins; ++b) {
+                if (sumI[b] > 0.0f) {
+                    totalACI += sumD[b] / sumI[b];
+                }
             }
         }
         
-        // Calculate ACI for this cluster
-        float clusterAci = 0.0f;
-        for (size_t b = 0; b < numActiveBins; ++b) {
-            if (m_sumIntensity[b] > 0) {
-                clusterAci += m_sumAbsDiff[b] / m_sumIntensity[b];
-            }
+        if (numActiveBins > 512) {
+            delete[] sumI;
+            delete[] sumD;
+            delete[] prevMag;
         }
-        
-        m_runningTotalACI += clusterAci;
 
-        // Remove processed frames
-        // This is O(N) where N is remaining data size. 
-        // Since we process as soon as we have a cluster, remaining data is small (< 1 cluster).
-        // So this is efficient.
-        size_t elementsToRemove = m_framesPerCluster * m_numBins;
-        m_spectralData.erase(m_spectralData.begin(), m_spectralData.begin() + elementsToRemove);
-        
-        storedFrames -= m_framesPerCluster;
+        Feature f;
+        f.hasTimestamp = false;
+        f.values.push_back(totalACI);
+        fs[0].push_back(f);
     }
-}
-
-Vamp::Plugin::FeatureSet
-ACIaccPlugin::getRemainingFeatures()
-{
-    FeatureSet fs;
-    
-    // Process remaining frames
-    if (!m_inputBuffer.empty()) {
-        size_t remainingFrames = m_inputBuffer.size() / m_blockSize;
-        if (remainingFrames > 0) {
-            processBatch(remainingFrames);
-        }
-        m_inputBuffer.clear();
-    }
-    
-    // Any remaining spectral data in m_spectralData is less than one cluster
-    // soundecology ignores partial clusters at the end (floor division)
-    // So we just return the accumulated total.
-
-    Feature f;
-    f.hasTimestamp = false;
-    f.values.push_back(m_runningTotalACI);
-    
-    fs[0].push_back(f);
     
     return fs;
 }

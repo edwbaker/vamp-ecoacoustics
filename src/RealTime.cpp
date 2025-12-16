@@ -232,7 +232,7 @@ RealTime::frame2RealTime(long frame, unsigned int sampleRate)
 
     int sec = int(frame / long(sampleRate));
     frame -= sec * long(sampleRate);
-    int nsec = (int)((double(frame) / double(sampleRate)) * ONE_BILLION + 0.5);
+    int nsec = static_cast<int>((static_cast<double>(frame) / sampleRate) * ONE_BILLION + 0.5);
     // Use ctor here instead of setting data members directly to
     // ensure nsec > ONE_BILLION is handled properly.  It's extremely
     // unlikely, but not impossible.

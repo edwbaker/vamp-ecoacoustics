@@ -1,0 +1,10 @@
+^C:\USERS\EDWAB\ICLOUDDRIVE\DOCUMENTS\CODING\ECOACOUSTIC-VAMP-PLUGINS\BUILD\CMAKEFILES\B14068AD0A23E435D53A4433EFC4623C\GENERATE.STAMP.RULE
+setlocal
+C:\Users\edwab\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\cmake.exe -SC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins -BC:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/edwab/iCloudDrive/Documents/Coding/Ecoacoustic-Vamp-Plugins/build/vamp-ecoacoustics.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

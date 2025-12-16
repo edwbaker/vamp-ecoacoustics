@@ -3,7 +3,6 @@
 #define _TH_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
-#include "vamp-sdk/FFT.h"
 #include <vector>
 
 using std::string;
@@ -52,19 +51,10 @@ public:
 protected:
     size_t m_blockSize;
     size_t m_stepSize;
+    size_t m_totalSamples;
     
-    // Accumulators for O(1) memory entropy calculation
-    double m_sumAmplitude;
-    double m_sumAmplitudeLogAmplitude;
-    size_t m_count;
-    
-    // FFT objects
-    Vamp::FFTComplex *m_fft;
-    Vamp::FFTReal *m_fftReal;
-    
-    // Buffers for FFT
-    double *m_complexInput;
-    double *m_complexOutput;
+    // Accumulate all samples for full-signal processing
+    std::vector<double> m_inputBuffer;
 };
 
 #endif

@@ -13,12 +13,8 @@
 #include "ACIPlugin.h"
 #include "ACIaccPlugin.h"
 #include "ADIaccPlugin.h"
-#include "ADIPlugin.h"
-#include "AEIPlugin.h"
 #include "AEIaccPlugin.h"
 #include "BIaccPlugin.h"
-#include "BIPlugin.h"
-#include "AmplitudeIndexPlugin.h"
 #include "THPlugin.h"
 #include "SHPlugin.h"
 #include "HPlugin.h"
@@ -27,12 +23,8 @@
 static Vamp::PluginAdapter<ACIPlugin> aciAdapter;
 static Vamp::PluginAdapter<ACIaccPlugin> aciAccAdapter;
 static Vamp::PluginAdapter<ADIaccPlugin> adiAccAdapter;
-static Vamp::PluginAdapter<ADIPlugin> adiAdapter;
-static Vamp::PluginAdapter<AEIPlugin> aeiAdapter;
 static Vamp::PluginAdapter<AEIaccPlugin> aeiAccAdapter;
 static Vamp::PluginAdapter<BIaccPlugin> biAccAdapter;
-static Vamp::PluginAdapter<BIPlugin> biAdapter;
-static Vamp::PluginAdapter<AmplitudeIndexPlugin> amplitudeIndexAdapter;
 static Vamp::PluginAdapter<THPlugin> thAdapter;
 static Vamp::PluginAdapter<SHPlugin> shAdapter;
 static Vamp::PluginAdapter<HPlugin> hAdapter;
@@ -45,18 +37,14 @@ const VampPluginDescriptor *vampGetPluginDescriptor(unsigned int version,
 
     switch (index) {
     case  0: return aciAdapter.getDescriptor();
-    case  1: return amplitudeIndexAdapter.getDescriptor();
-    case  2: return thAdapter.getDescriptor();
-    case  3: return aciAccAdapter.getDescriptor();
-    case  4: return adiAccAdapter.getDescriptor();
-    case  5: return adiAdapter.getDescriptor();
-    case  6: return aeiAdapter.getDescriptor();
-    case  7: return aeiAccAdapter.getDescriptor();
-    case  8: return biAccAdapter.getDescriptor();
-    case  9: return biAdapter.getDescriptor();
-    case 10: return shAdapter.getDescriptor();
-    case 11: return hAdapter.getDescriptor();
-    case 12: return ndsiAdapter.getDescriptor();
+    case  1: return thAdapter.getDescriptor();
+    case  2: return aciAccAdapter.getDescriptor();
+    case  3: return adiAccAdapter.getDescriptor();
+    case  4: return aeiAccAdapter.getDescriptor();
+    case  5: return biAccAdapter.getDescriptor();
+    case  6: return shAdapter.getDescriptor();
+    case  7: return hAdapter.getDescriptor();
+    case  8: return ndsiAdapter.getDescriptor();
     default: return 0;
     }
 }

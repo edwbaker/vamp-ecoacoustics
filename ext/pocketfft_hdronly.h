@@ -45,6 +45,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef POCKETFFT_HDRONLY_H
 #define POCKETFFT_HDRONLY_H
 
+#define POCKETFFT_NO_MULTITHREADING 1
+
 #ifndef __cplusplus
 #error This file is C++ and requires a C++ compiler.
 #endif
@@ -56,6 +58,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef POCKETFFT_CACHE_SIZE
 #define POCKETFFT_CACHE_SIZE 0
 #endif
+
 
 #include <cmath>
 #include <cstdlib>
