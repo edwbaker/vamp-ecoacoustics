@@ -1,3 +1,12 @@
+/*
+    Ecoacoustic Vamp Plugins
+    
+    High-performance implementations of acoustic indices for 
+    bioacoustics and soundscape ecology analysis.
+    
+    (C) Ed Baker 2025. Licensed under GPL (>=2).
+*/
+
 // SHPlugin.cpp - Spectral Entropy
 // Matches seewave::sh(spec(wave)) behavior
 // Uses PocketFFT for efficient FFT on arbitrary sizes

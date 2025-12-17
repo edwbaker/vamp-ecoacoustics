@@ -1,10 +1,10 @@
-/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
-
 /*
-    ACI Vamp Plugin
+    Ecoacoustic Vamp Plugins
     
-    Implements the Acoustic Complexity Index as described in 
-    Pieretti et al. (2011) and mimics seewave::ACI()
+    High-performance implementations of acoustic indices for 
+    bioacoustics and soundscape ecology analysis.
+    
+    (C) Ed Baker 2025. Licensed under GPL (>=2).
 */
 
 #include "vamp/vamp.h"

@@ -1,3 +1,12 @@
+/*
+    Ecoacoustic Vamp Plugins
+    
+    High-performance implementations of acoustic indices for 
+    bioacoustics and soundscape ecology analysis.
+    
+    (C) Ed Baker 2025. Licensed under GPL (>=2).
+*/
+
 // BIaccPlugin.cpp - Bioacoustic Index (Accumulated)
 // Matches soundecology::bioacoustic_index
 

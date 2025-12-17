@@ -1,3 +1,12 @@
+/*
+    Ecoacoustic Vamp Plugins
+    
+    High-performance implementations of acoustic indices for 
+    bioacoustics and soundscape ecology analysis.
+    
+    (C) Ed Baker 2025. Licensed under GPL (>=2).
+*/
+
 #ifndef _ACI_PLUGIN_H_
 #define _ACI_PLUGIN_H_
 

@@ -1,3 +1,12 @@
+/*
+    Ecoacoustic Vamp Plugins
+    
+    High-performance implementations of acoustic indices for 
+    bioacoustics and soundscape ecology analysis.
+    
+    (C) Ed Baker 2025. Licensed under GPL (>=2).
+*/
+
 // THPlugin.cpp - Temporal Entropy (Ht)
 // Matches seewave::th(env(wave)) behavior
 // Uses PocketFFT for Hilbert transform on arbitrary sizes

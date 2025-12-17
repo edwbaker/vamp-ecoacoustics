@@ -1,130 +1,163 @@
 # Ecoacoustic Vamp Plugins
 
-## Overview
+High-performance [Vamp plugins](https://vamp-plugins.org/) for ecoacoustic analysis, implementing standard acoustic indices used in bioacoustics and soundscape ecology.
 
-This repository contains a collection of Vamp plugins for ecoacoustic analysis, implementing various indices commonly used in bioacoustics. These plugins are designed to mirror the behavior of standard R (`seewave`, `tuneR`) and Python (`maad`) implementations, providing high-performance C++ alternatives.
+## Features
+
+- **Fast**: C++ implementations significantly faster than R  equivalents
+- **Accurate**: Validated against `soundecology` and `seewave` R packages
+- **Cross-platform**: Builds for Windows, macOS, Linux, and WebAssembly
+- **Vamp ecosystem**: Works with Audacity, and any Vamp host
 
 ## Implemented Indices
 
-1.  **ACI (Acoustic Complexity Index)**: Measures the variability of intensities. Mirrors `seewave::ACI`.
-2.  **ADI (Acoustic Diversity Index)**: Measures the diversity of the spectrum. Mirrors `seewave::ADI`.
-3.  **AEI (Acoustic Evenness Index)**: Measures the evenness of the spectrum. Mirrors `seewave::AEI`.
-4.  **BI (Bioacoustic Index)**: Calculates the area under the curve in specific frequency bands. Mirrors `seewave::bio`.
-5.  **SH (Spectral Entropy)**: Shannon entropy of the spectral distribution. Mirrors `seewave::sh`.
-6.  **TH (Temporal Entropy)**: Shannon entropy of the amplitude envelope. Mirrors `seewave::th`.
-7.  **H (Total Entropy)**: Product of Spectral and Temporal Entropy ($H = SH \times TH$). Mirrors `seewave::H`.
-8.  **NDSI (Normalized Difference Soundscape Index)**: Ratio of biophony to anthropophony. Mirrors `seewave::NDSI`.
+| Plugin ID | Index | Reference Implementation |
+|-----------|-------|-------------------------|
+| `aci` | Acoustic Complexity Index | `seewave::ACI` |
+| `aci-acc` | ACI (accumulated) | `soundecology::acoustic_complexity` |
+| `adi-acc` | Acoustic Diversity Index | `soundecology::acoustic_diversity` |
+| `aei-acc` | Acoustic Evenness Index | `soundecology::acoustic_evenness` |
+| `bi-acc` | Bioacoustic Index | `soundecology::bioacoustic_index` |
+| `ndsi` | NDSI | `soundecology::ndsi` |
+| `sh` | Spectral Entropy | `seewave::sh` |
+| `th` | Temporal Entropy | `seewave::th` |
+| `h` | Total Entropy | `seewave::H` |
 
 ## Installation
 
-## Implementation Details
+### Pre-built Binaries
 
-The plugin exactly follows the seewave::ACI() algorithm:
+Download from [GitHub Releases](https://github.com/edwbaker/vamp-ecoacoustics/releases):
 
-1. Computes a Short-Term Fourier Transform (STFT) of the audio
-2. Optionally filters to a specific frequency range
-3. Divides the spectrogram into temporal windows
-4. For each frequency bin within each temporal window:
-   - Calculates the differences between consecutive time frames
-   - Normalizes by the sum of intensities in that frequency bin
-   - Sums the absolute values
-5. Returns the total ACI across all frequency bins and temporal windows
+- **Windows**: `vamp-ecoacoustics.dll`
+- **macOS**: `vamp-ecoacoustics.dylib`
+- **Linux**: `vamp-ecoacoustics.so`
 
-## Parameters
+Copy to your Vamp plugins folder:
+- **Windows**: `C:\Program Files\Vamp Plugins\` or `%USERPROFILE%\Vamp Plugins\`
+- **macOS**: `/Library/Audio/Plug-Ins/Vamp/` or `~/Library/Audio/Plug-Ins/Vamp/`
+- **Linux**: `/usr/lib/vamp/` or `/usr/local/lib/vamp/` or `~/.vamp/`
 
-### minfreq (Minimum Frequency)
-- **Description**: Lower frequency limit in kHz
-- **Default**: 0 (use full frequency range)
-- **Range**: 0 to Nyquist frequency
-- **Corresponds to**: `flim[1]` in seewave::ACI()
+### Building from Source
 
-### maxfreq (Maximum Frequency)
-- **Description**: Upper frequency limit in kHz
-- **Default**: 0 (use full frequency range)
-- **Range**: 0 to Nyquist frequency
-- **Corresponds to**: `flim[2]` in seewave::ACI()
+#### Windows (MSVC)
+```powershell
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
+```
 
-### nbwindows (Number of Windows)
-- **Description**: Number of temporal windows to divide the recording
-- **Default**: 1
-- **Range**: 1 to 100
-- **Corresponds to**: `nbwindows` in seewave::ACI()
+#### macOS / Linux
+```bash
+make PLATFORM=macos   # or PLATFORM=linux
+```
 
-## Usage in R with ReVAMP
+#### WebAssembly
+```bash
+make PLATFORM=wasm
+```
+
+## Usage
+
+### With R (ReVAMP package)
+
+Makes use of the [ReVAMP](https://revamp.ebaker.me.uk) package to run Vamp plugins from R.
 
 ```r
 library(ReVAMP)
 library(tuneR)
 
 # Load audio
-wave <- readWave("audio.wav")
+wav <- readWave("recording.wav")
 
-# Basic usage - compute ACI with default parameters
-result <- runPlugin("vamp-example-plugins:aci", wave, 
-                   blockSize = 512, stepSize = 512)
-aci_value <- result$aci[1]
+# Compute indices
+aci <- runPlugin(wav, "vamp-ecoacoustics:aci-acc")
+adi <- runPlugin(wav, "vamp-ecoacoustics:adi-acc")
+aei <- runPlugin(wav, "vamp-ecoacoustics:aei-acc")
+bi  <- runPlugin(wav, "vamp-ecoacoustics:bi-acc")
+ndsi <- runPlugin(wav, "vamp-ecoacoustics:ndsi")
 
-# With multiple temporal windows
-result <- runPlugin("vamp-example-plugins:aci", wave,
-                   params = list(nbwindows = 4),
-                   blockSize = 512, stepSize = 512)
-
-# With frequency limits (2-6 kHz)
-result <- runPlugin("vamp-example-plugins:aci", wave,
-                   params = list(minfreq = 2, maxfreq = 6),
-                   blockSize = 512, stepSize = 512)
-
-# With overlap (50%)
-result <- runPlugin("vamp-example-plugins:aci", wave,
-                   blockSize = 512, stepSize = 256)
+# With custom parameters
+aei_custom <- runPlugin(wav, "vamp-ecoacoustics:aei-acc",
+                        params = list(maxFreq = 8, dbThreshold = -40))
 ```
 
-## Comparison with seewave::ACI()
+## Plugin Parameters
 
-The plugin is designed to produce equivalent results to seewave::ACI():
+### ACI (aci, aci-acc)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `minFreq` | Minimum frequency (kHz) | 0 |
+| `maxFreq` | Maximum frequency (kHz) | Nyquist |
 
-```r
-library(seewave)
-library(ReVAMP)
+### ADI (adi-acc)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `maxFreq` | Maximum frequency (kHz) | 10 |
+| `dbThreshold` | Threshold in dB (relative to max) | -50 |
+| `freqStep` | Frequency band width (Hz) | 1000 |
 
-# seewave version
-aci_seewave <- ACI(wave, wl = 512, ovlp = 0, nbwindows = 1)
+### AEI (aei-acc)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `maxFreq` | Maximum frequency (kHz) | 10 |
+| `dbThreshold` | Threshold in dB (relative to max) | -50 |
+| `freqStep` | Frequency band width (Hz) | 1000 |
 
-# Vamp plugin version
-aci_vamp <- runPlugin("vamp-example-plugins:aci", wave,
-                     blockSize = 512, stepSize = 512)$aci[1]
-```
+### BI (bi-acc)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `minFreq` | Minimum frequency (kHz) | 2 |
+| `maxFreq` | Maximum frequency (kHz) | 8 |
 
-### Parameter Mapping
+### NDSI
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `anthroMin` | Anthrophony min frequency (kHz) | 1 |
+| `anthroMax` | Anthrophony max frequency (kHz) | 2 |
+| `bioMin` | Biophony min frequency (kHz) | 2 |
+| `bioMax` | Biophony max frequency (kHz) | 11 |
 
-| seewave parameter | Vamp parameter | Notes |
-|------------------|----------------|-------|
-| `wl` | `blockSize` | Window length for STFT |
-| `ovlp` | calculated from `stepSize` | ovlp=50 means stepSize = blockSize/2 |
-| `flim[1]` | `minfreq` | Lower frequency in kHz |
-| `flim[2]` | `maxfreq` | Upper frequency in kHz |
-| `nbwindows` | `nbwindows` | Number of temporal windows |
-| `wn` | N/A | Vamp SDK handles windowing automatically |
+## Validation
 
-## Technical Notes
+All plugins are validated against their R reference implementations. Example results:
 
-- **Input Domain**: Frequency domain (plugin receives magnitude spectra from Vamp SDK)
-- **Output**: Single value representing total ACI
-- **Processing**: All frames are accumulated, final ACI computed in `getRemainingFeatures()`
-- **Memory**: Stores entire spectrogram in memory for temporal window analysis
+| Index | Test Files | Max Difference |
+|-------|------------|----------------|
+| ACI | 91 | < 0.001% |
+| ADI | 93 | < 0.01% |
+| AEI | 91 | < 0.02% |
+| BI | 91 | < 0.01% |
+| NDSI | 91 | < 0.01% |
+
+## Performance
+
+Typical speedups vs R implementations (varies by file):
+
+| Index | vs soundecology | vs seewave |
+|-------|-----------------|------------|
+| ACI | ~8x | ~89x |
+| ADI | ~3-6x | - |
+| AEI | ~2-4x | - |
+| BI | ~7x | - |
+| NDSI | ~30x | - |
+| H | - | ~4x |
+| SH | - | ~2x |
+| TH | - | ~2x |
 
 ## References
 
-Pieretti N, Farina A, Morri FD (2011) A new methodology to infer the singing activity of an avian community: the Acoustic Complexity Index (ACI). *Ecological Indicators*, 11, 868-873.
-
-Farina A, Pieretti N, Piccioli L (2011) The soundscape methodology for long-term bird monitoring: a Mediterranean Europe case-study. *Ecological Informatics*, 6, 354-363.
-
-Sueur J, Aubin T, Simonis C (2008). Seewave, a free modular tool for sound analysis and synthesis. *Bioacoustics*, 18: 213-226.
+- Pieretti N, Farina A, Morri FD (2011). A new methodology to infer the singing activity of an avian community: the Acoustic Complexity Index (ACI). *Ecological Indicators*, 11, 868-873.
+- Villanueva-Rivera LJ, Pijanowski BC, Doucette J, Pekin B (2011). A primer of acoustic analysis for landscape ecologists. *Landscape Ecology*, 26, 1233-1246.
+- Sueur J, Aubin T, Simonis C (2008). Seewave, a free modular tool for sound analysis and synthesis. *Bioacoustics*, 18, 213-226.
 
 ## License
 
-MIT License
+GPL (>= 2)
 
 ## Author
 
-ReVAMP package (after Pieretti et al. 2011 and seewave::ACI implementation)
+[Ed Baker](https://ebaker.me.uk)
+
+## Contributing
+
+Issues, feature requests and pull requests welcome at [GitHub](https://github.com/edwbaker/vamp-ecoacoustics).
