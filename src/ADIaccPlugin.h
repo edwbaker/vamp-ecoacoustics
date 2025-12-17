@@ -62,8 +62,8 @@ protected:
     // FFT
     Vamp::FFTReal *m_fft;
     std::vector<double> m_fftOut;
-    std::vector<double> m_fftInput;  // Reusable FFT input buffer
-    std::vector<float> m_window;     // Float for memory efficiency
+    std::vector<double> m_fftInput; 
+    std::vector<float> m_window;
     std::vector<std::vector<int>> m_binToBands;  // Pre-computed bin-to-bands mapping (each bin can be in multiple bands)
 
     // Batch processing - per channel

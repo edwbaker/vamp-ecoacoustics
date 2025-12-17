@@ -66,7 +66,6 @@ protected:
     vector<float> m_window;       // Hamming window
     double m_windowSumSq;
     
-    // Reusable work buffers for processOneSecond
     vector<double> m_timeBuf;
     vector<double> m_detrendBuf;
     vector<double> m_windowPSD;

@@ -1,9 +1,15 @@
 #ifndef _AEI_ACC_PLUGIN_H_
 #define _AEI_ACC_PLUGIN_H_
 
-#include "EcoacousticSpectralPlugin.h"
+#include "vamp-sdk/Plugin.h"
+#include "vamp-sdk/FFT.h"
+#include <vector>
+#include <string>
 
-class AEIaccPlugin : public EcoacousticSpectralPlugin
+using std::string;
+using std::vector;
+
+class AEIaccPlugin : public Vamp::Plugin
 {
 public:
     AEIaccPlugin(float inputSampleRate);
@@ -16,6 +22,10 @@ public:
     int getPluginVersion() const;
     string getCopyright() const;
 
+    InputDomain getInputDomain() const;
+    size_t getMinChannelCount() const;
+    size_t getMaxChannelCount() const;
+
     ParameterList getParameterDescriptors() const;
     float getParameter(string identifier) const;
     void setParameter(string identifier, float value);
@@ -27,6 +37,8 @@ public:
     OutputList getOutputDescriptors() const;
 
     bool initialise(size_t channels, size_t stepSize, size_t blockSize);
+    void reset();
+    FeatureSet process(const float *const *inputBuffers, Vamp::RealTime timestamp);
 
     size_t getPreferredBlockSize() const;
     size_t getPreferredStepSize() const;
@@ -34,18 +46,43 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t numFrames);
+    void processBatch(size_t channel, size_t numFrames);
+
+    // Internal
+    size_t m_channels;
+    size_t m_blockSize;
+    size_t m_stepSize;
+    size_t m_numBins;
+    
+    // Per-channel tracking
+    std::vector<size_t> m_frameCount_ch;
+    std::vector<float> m_globalMax_ch;
+
+    // FFT
+    Vamp::FFTReal *m_fft;
+    std::vector<double> m_fftOut;
+    std::vector<double> m_window;
+
+    // Batch processing - per channel
+    size_t m_batchSize;
+    std::vector<std::vector<double>> m_inputBuffer_ch; 
+    std::vector<std::vector<float>> m_spectralData_ch;
+    
+    enum WindowType {
+        Hanning,
+        Hamming
+    };
+    WindowType m_windowType;
 
     // Parameters
+    float m_minFreq;
+    float m_maxFreq;
     float m_dbThreshold;
-    float m_freqStep; // Hz
+    float m_freqStep;
 
-    // Accumulators
-    // Histogram: [band][db_bin]
-    // dB range: -120 to 0. Resolution: 0.1 dB -> 1200 bins.
-    // Bin 0: -120dB, Bin 1200: 0dB.
-    // Values < -120dB go to bin 0.
-    std::vector<std::vector<int>> m_bandHistograms;
+    // Accumulators - per channel
+    std::vector<std::vector<long>> m_bandAboveThresholdCount_ch;
+    std::vector<std::vector<long>> m_bandTotalCount_ch;
     std::vector<int> m_bandStartBins;
     std::vector<int> m_bandEndBins;
     bool m_bandsInitialized;

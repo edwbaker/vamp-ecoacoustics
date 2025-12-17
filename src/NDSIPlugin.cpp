@@ -253,7 +253,7 @@ bool NDSIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_fft = new Vamp::FFTReal(static_cast<unsigned int>(m_fftSize));
     m_fftOut.resize(m_fftSize + 2);
     
-    // Hamming window (float for performance)
+    // Hamming window
     m_window.resize(m_fftSize);
     m_windowSumSq = 0.0;
     for (size_t i = 0; i < m_fftSize; ++i) {

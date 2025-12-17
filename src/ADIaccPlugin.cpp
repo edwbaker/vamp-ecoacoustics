@@ -252,7 +252,6 @@ bool ADIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize
     m_fftOut.resize(blockSize + 2);
     m_fftInput.resize(blockSize);
     
-    // Pre-compute window (float for memory efficiency)
     m_window.resize(m_blockSize);
     double denom = static_cast<double>(m_windowType == Hamming ? m_blockSize - 1 : m_blockSize);
     if (m_windowType == Hamming) {
@@ -324,7 +323,6 @@ ADIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp
         // Track actual samples received
         m_sampleCount_ch[ch] += m_blockSize;
         
-        // Ensure capacity and append windowed samples
         size_t oldSize = m_inputBuffer_ch[ch].size();
         m_inputBuffer_ch[ch].resize(oldSize + m_blockSize);
         double* dst = m_inputBuffer_ch[ch].data() + oldSize;
