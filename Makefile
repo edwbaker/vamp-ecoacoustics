@@ -85,9 +85,9 @@ else ifeq ($(PLATFORM),windows)
 else ifeq ($(PLATFORM),wasm)
 	CXX = emcc
 	TARGET = $(PLUGIN_NAME).wasm
-	# Emscripten specific flags
-	CXXFLAGS = -std=c++11 -O3 -fPIC -I. -Isrc -Iext -s ALLOW_MEMORY_GROWTH=1
-	LDFLAGS = -s SIDE_MODULE=1 -O3 -s EXPORTED_FUNCTIONS="['_vampGetPluginDescriptor']"
+	# Emscripten specific flags for wasm plugin as side module
+	CXXFLAGS = -std=c++11 -O3 -fPIC $(THREAD_FLAG) -I. -Isrc -Iext -DPOCKETFFT_NO_MULTITHREADING=1
+	LDFLAGS = -s SIDE_MODULE=1 -O3 -s EXPORT_ALL=1 -s LINKABLE=1 --no-entry
 else
 	# Linux
 	TARGET = $(PLUGIN_NAME).so
@@ -133,6 +133,9 @@ ifeq ($(PLATFORM),windows)
 else
 	rm -f $(OBJECTS) $(TARGET) $(PLUGIN_NAME).wasm $(PLUGIN_NAME).js
 endif
+ifeq ($(PLATFORM),wasm)
+	rm -f $(PLUGIN_NAME).wasm $(PLUGIN_NAME).js $(PLUGIN_NAME).wast
+endif
 
 install: $(TARGET)
 	@echo "Installing for $(PLATFORM)..."
@@ -142,6 +145,8 @@ else ifeq ($(PLATFORM),macos)
 	@echo "Copy $(TARGET) to ~/Library/Audio/Plug-Ins/Vamp/"
 else ifeq ($(PLATFORM),linux)
 	@echo "Copy $(TARGET) to ~/vamp/"
+else ifeq ($(PLATFORM),wasm)
+	@echo "Use $(TARGET) in a WebAssembly-enabled Vamp host or web application"
 endif
 
 .PHONY: all clean install
