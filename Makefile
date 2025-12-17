@@ -62,7 +62,7 @@ ifeq ($(PLATFORM),windows)
 	CXXFLAGS += -DPOCKETFFT_NO_MULTITHREADING=1
 endif
 
-SOURCES = src/ACIPlugin.cpp src/ACIaccPlugin.cpp src/ADIaccPlugin.cpp src/ADIPlugin.cpp src/AEIaccPlugin.cpp src/BIaccPlugin.cpp src/BIPlugin.cpp src/THPlugin.cpp src/SHPlugin.cpp src/HPlugin.cpp src/NDSIPlugin.cpp src/FFT.cpp src/plugins.cpp src/PluginAdapter.cpp src/RealTime.cpp
+SOURCES = src/ACIPlugin.cpp src/ACIaccPlugin.cpp src/ADIaccPlugin.cpp src/AEIaccPlugin.cpp src/BIaccPlugin.cpp src/THPlugin.cpp src/SHPlugin.cpp src/HPlugin.cpp src/NDSIPlugin.cpp src/FFT.cpp src/plugins.cpp src/PluginAdapter.cpp src/RealTime.cpp
 ifeq ($(PLATFORM),windows)
 ifeq ($(MSVC_BUILD),1)
 OBJECTS = $(SOURCES:.cpp=.obj)
