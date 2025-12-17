@@ -380,9 +380,7 @@ void ADIaccPlugin::processBatch(size_t channel, size_t numFrames)
     }
 
     size_t blockSize = m_blockSize;
-    size_t numBands = m_bandHistograms_ch[channel].size();
     
-    float binResolution = (m_inputSampleRate / 2.0f) / (m_blockSize / 2);
     float maxFreqHz = m_maxFreq;
     if (maxFreqHz <= 0) maxFreqHz = m_inputSampleRate / 2.0f;
     
