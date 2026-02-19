@@ -31,6 +31,7 @@ ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
     m_fft(nullptr),
     m_windowType(Hamming),
     m_clusterSize(5.0f),
+    m_nbWindows(12),
     m_framesPerCluster(0)
 {
 }
@@ -145,6 +146,17 @@ ACIaccPlugin::getParameterDescriptors() const
     d.isQuantized = false;
     list.push_back(d);
 
+    d.identifier = "nbWindows";
+    d.name = "Number of Windows";
+    d.description = "Number of time windows to divide the file into. Set to 0 to auto-select windows ≈ 5 s each";
+    d.unit = "";
+    d.minValue = 0;
+    d.maxValue = 1000;
+    d.defaultValue = 12;
+    d.isQuantized = true;
+    d.quantizeStep = 1;
+    list.push_back(d);
+
     return list;
 }
 
@@ -154,6 +166,7 @@ ACIaccPlugin::getParameter(string identifier) const
     if (identifier == "minFreq") return m_minFreq;
     if (identifier == "maxFreq") return m_maxFreq;
     if (identifier == "clusterSize") return m_clusterSize;
+    if (identifier == "nbWindows") return static_cast<float>(m_nbWindows);
     return 0;
 }
 
@@ -172,6 +185,8 @@ ACIaccPlugin::setParameter(string identifier, float value)
              m_framesPerCluster = static_cast<size_t>(std::floor(m_clusterSize * framesPerSecond));
              if (m_framesPerCluster < 1) m_framesPerCluster = 1;
         }
+    } else if (identifier == "nbWindows") {
+        m_nbWindows = static_cast<int>(value);
     }
 }
 
@@ -353,14 +368,26 @@ ACIaccPlugin::getRemainingFeatures()
         size_t trueSampleCount = m_totalSamplesReceived[ch] - paddingSamples;
         double duration = static_cast<double>(trueSampleCount) / m_inputSampleRate;
         
-        // Number of clusters = floor(duration / cluster_size)
-        size_t numClusters = static_cast<size_t>(std::floor(duration / m_clusterSize));
-        if (numClusters == 0) numClusters = 1;
-        
-        // Frames per cluster (I_per_j in soundecology)
-        double delta_tk = duration / totalFrames;
-        size_t framesPerCluster = static_cast<size_t>(std::floor(m_clusterSize / delta_tk));
-        if (framesPerCluster < 1) framesPerCluster = 1;
+        // Determine clusters/frames per cluster.
+        size_t framesPerCluster = 1;
+        size_t numClusters = 1;
+
+        if (m_nbWindows > 0) {
+            // User requested number of windows: divide frames into that many windows
+            framesPerCluster = totalFrames / static_cast<size_t>(m_nbWindows);
+            if (framesPerCluster < 1) framesPerCluster = 1;
+            numClusters = totalFrames / framesPerCluster;
+            if (numClusters == 0) numClusters = 1;
+        } else {
+            // Use cluster size (seconds) to determine clusters as before
+            numClusters = static_cast<size_t>(std::floor(duration / m_clusterSize));
+            if (numClusters == 0) numClusters = 1;
+
+            // Frames per cluster (I_per_j in soundecology)
+            double delta_tk = duration / totalFrames;
+            framesPerCluster = static_cast<size_t>(std::floor(m_clusterSize / delta_tk));
+            if (framesPerCluster < 1) framesPerCluster = 1;
+        }
         
         // Determine frequency range
         size_t minBinIndex = 0;

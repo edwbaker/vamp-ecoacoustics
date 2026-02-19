@@ -80,6 +80,10 @@ protected:
 
 private:
     float m_clusterSize; // in seconds
+    // Number of windows to split file into when producing accumulated ACI.
+    // If >0, the file is divided into this many windows. If 0, auto-select
+    // windows so that each window is approximately 5 seconds long.
+    int m_nbWindows;
     
     // Streaming calculation state - per channel for stereo support
     size_t m_framesPerCluster;

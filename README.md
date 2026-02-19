@@ -88,6 +88,7 @@ aei_custom <- runPlugin(wav, "vamp-ecoacoustics:aei-acc",
 |-----------|-------------|---------|
 | `minFreq` | Minimum frequency (kHz) | 0 |
 | `maxFreq` | Maximum frequency (kHz) | Nyquist |
+| `nbWindows` | Number of time windows to divide the file into (aci-acc). Set to `0` to auto-select windows so each is ≈ 5 s | 12 |
 
 ### ADI (adi-acc)
 | Parameter | Description | Default |
