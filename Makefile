@@ -50,13 +50,20 @@ ifeq ($(PLATFORM),macos)
 PIC_FLAG = -fPIC
 endif
 
+# macOS: universal binary for Apple Silicon and Intel. The Intel slice loads on
+# macOS 10.13+; clang raises the arm64 slice to 11.0, the first arm64 release.
+ARCH_FLAGS :=
+ifeq ($(PLATFORM),macos)
+ARCH_FLAGS = -arch arm64 -arch x86_64 -mmacosx-version-min=10.13
+endif
+
 # Threads control: set THREADS=0 to compile with -DDISABLE_THREADS
 THREAD_FLAG :=
 ifeq ($(THREADS),0)
 THREAD_FLAG = -DDISABLE_THREADS
 endif
 
-CXXFLAGS = -std=c++11 -O3 -Wall $(PIC_FLAG) $(THREAD_FLAG) -I. -Isrc -Iext
+CXXFLAGS = -std=c++11 -O3 -Wall $(PIC_FLAG) $(ARCH_FLAGS) $(THREAD_FLAG) -I. -Isrc -Iext
 
 ifeq ($(PLATFORM),windows)
 	CXXFLAGS += -DPOCKETFFT_NO_MULTITHREADING=1
@@ -75,7 +82,7 @@ endif
 
 ifeq ($(PLATFORM),macos)
 	TARGET = $(PLUGIN_NAME).dylib
-	LDFLAGS = -dynamiclib -install_name $(TARGET)
+	LDFLAGS = -dynamiclib -install_name $(TARGET) $(ARCH_FLAGS)
 else ifeq ($(PLATFORM),windows)
 	TARGET = $(PLUGIN_NAME).dll
 	# Windows builds default to MSVC via CMake. The MSVC build path is
@@ -104,6 +111,10 @@ else
 	else
 	LDFLAGS = -shared -Wl,-soname,$(TARGET)
 	endif
+
+	# Link the C++ runtime statically so the plugin doesn't need the build
+	# machine's (recent) libstdc++. vamp-plugin.map keeps its symbols private.
+	LDFLAGS += -static-libstdc++ -static-libgcc
 endif
 
 all: $(TARGET)
