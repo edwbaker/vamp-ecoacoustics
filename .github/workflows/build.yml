@@ -13,6 +13,7 @@ jobs:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
@@ -37,7 +38,8 @@ jobs:
       if: matrix.os == 'windows-latest'
       shell: powershell
       run: |
-        cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+        # No -G: use whichever Visual Studio the runner image has
+        cmake -S . -B build -A x64
         cmake --build build --config Release
         Copy-Item -Path "build\Release\vamp-ecoacoustics.dll" -Destination "${{ github.workspace }}\${{ matrix.artifact_name }}" -Force
 
