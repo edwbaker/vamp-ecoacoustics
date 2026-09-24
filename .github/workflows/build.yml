@@ -30,9 +30,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Build (non-Windows)
-      if: matrix.os != 'windows-latest'
-      run: make PLATFORM=${{ matrix.platform }}
+    - name: Build (macOS)
+      if: matrix.os == 'macos-latest'
+      run: make PLATFORM=macos
+
+    - name: Build (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      # Build against glibc 2.28 (manylinux_2_28, AlmaLinux 8) rather than the
+      # runner's, so the plugin also loads on older distributions
+      run: docker run --rm -v "$PWD":/src -w /src quay.io/pypa/manylinux_2_28_x86_64 make PLATFORM=linux
 
     - name: Build (MSVC)
       if: matrix.os == 'windows-latest'
