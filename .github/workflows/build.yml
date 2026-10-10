@@ -27,7 +27,7 @@ jobs:
             artifact_name: vamp-ecoacoustics.dll
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Build (non-Windows)
       if: matrix.os != 'windows-latest'
@@ -42,7 +42,7 @@ jobs:
         Copy-Item -Path "build\Release\vamp-ecoacoustics.dll" -Destination "${{ github.workspace }}\${{ matrix.artifact_name }}" -Force
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.platform }}-build
         path: ${{ matrix.artifact_name }}
@@ -51,16 +51,16 @@ jobs:
     name: Build WASM
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     
     - name: Setup Emscripten
-      uses: mymindstorm/setup-emsdk@v12
+      uses: emscripten-core/setup-emsdk@v16
     
     - name: Build
       run: make PLATFORM=wasm
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: wasm-build
         path: vamp-ecoacoustics.wasm
@@ -74,13 +74,13 @@ jobs:
       contents: write
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: release-assets
           merge-multiple: true
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-assets/*
 
