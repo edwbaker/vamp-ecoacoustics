@@ -276,8 +276,12 @@ SHPlugin::getRemainingFeatures()
         m_inputBuffer[i] = m_inputBuffer[i] * w;
     }
 
-    // Perform real-to-complex FFT using PocketFFT
-    std::vector<std::complex<double>> fftOut(n / 2 + 1);
+    // Perform real-to-complex FFT using PocketFFT. PocketFFT copies the whole input line into its own work array
+    // before it writes any output, so the n/2+1 complex results are written over the input instead of into a
+    // separate array. They take 2*(n/2+1) doubles, which is n+2 for even n (n+1 for odd n): make room for them.
+    const size_t nOut = n / 2 + 1;
+    m_inputBuffer.resize(2 * nOut);
+    std::complex<double>* fftOut = reinterpret_cast<std::complex<double>*>(m_inputBuffer.data());
 
     pocketfft::shape_t shape = {n};
     pocketfft::stride_t stride_in = {sizeof(double)};
@@ -285,17 +289,17 @@ SHPlugin::getRemainingFeatures()
     pocketfft::shape_t axes = {0};
 
     pocketfft::r2c(shape, stride_in, stride_out, axes,
-                   pocketfft::FORWARD, m_inputBuffer.data(), fftOut.data(), 1.0);
-    std::vector<double>().swap(m_inputBuffer);      // no longer needed
+                   pocketfft::FORWARD, m_inputBuffer.data(), fftOut, 1.0);
 
-    // Compute magnitude spectrum
+    // Compute magnitude spectrum (same complex values, read back as pairs of doubles)
     m_numBins = n / 2;
     m_accumulatedSpectrum.resize(m_numBins);
 
+    const double* spec = m_inputBuffer.data();
     for (size_t i = 0; i < m_numBins; ++i) {
-        m_accumulatedSpectrum[i] = 2.0 * std::abs(fftOut[i]);
+        m_accumulatedSpectrum[i] = 2.0 * std::abs(std::complex<double>(spec[2 * i], spec[2 * i + 1]));
     }
-    std::vector<std::complex<double>>().swap(fftOut);
+    std::vector<double>().swap(m_inputBuffer);      // no longer needed
 
     m_frameCount = 1;
 
