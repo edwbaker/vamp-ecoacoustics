@@ -167,9 +167,8 @@ bool HPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     // Initialize TH plugin
     if (!m_thPlugin->initialise(channels, stepSize, blockSize)) return false;
     
-    // Buffer for accumulating samples
+    // Samples are accumulated once, in the TH plugin; computeSH() reads them from there.
     m_inputBuffer.clear();
-    m_inputBuffer.reserve(blockSize * 1000);
 
     return true;
 }
@@ -184,35 +183,28 @@ void HPlugin::reset()
 
 HPlugin::FeatureSet HPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
 {
-    // Pass to TH plugin
+    // The TH plugin accumulates the samples (as doubles, in arrival order) for both indices
     m_thPlugin->process(inputBuffers, timestamp);
-    
-    // Accumulate samples for meanspec computation using resize pattern
-    size_t oldSize = m_inputBuffer.size();
-    m_inputBuffer.resize(oldSize + m_blockSize);
-    double* dst = m_inputBuffer.data() + oldSize;
-    const float* src = inputBuffers[0];
-    for (size_t i = 0; i < m_blockSize; ++i) {
-        dst[i] = static_cast<double>(src[i]);
-    }
 
     return FeatureSet();
 }
 
 double HPlugin::computeSH() const
 {
-    size_t n = m_inputBuffer.size();
-    
+    // Same samples, same order, same conversion to double as the separate copy this plugin used to keep
+    const std::vector<double>& samples = m_thPlugin->inputBuffer();
+    size_t n = samples.size();
+
     // Remove trailing zeros (host may pad last block)
-    while (n > 0 && m_inputBuffer[n-1] == 0.0) {
+    while (n > 0 && samples[n-1] == 0.0) {
         n--;
     }
     // Keep some zeros back if we removed too many (file might actually end with zeros)
-    size_t removed = m_inputBuffer.size() - n;
+    size_t removed = samples.size() - n;
     if (removed > 0 && removed < m_blockSize) {
         // Likely actual padding, keep trimmed size
     } else {
-        n = m_inputBuffer.size();
+        n = samples.size();
     }
     
     if (n < m_wl) return 0.0;
@@ -229,7 +221,7 @@ double HPlugin::computeSH() const
     pocketfft::stride_t stride_out = {sizeof(std::complex<double>)};
     pocketfft::shape_t axes = {0};
     
-    const double* inputData = m_inputBuffer.data();
+    const double* inputData = samples.data();
     const float* win = m_window.data();
     const double wlInv = 2.0 / static_cast<double>(m_wl);
     

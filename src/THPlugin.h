@@ -56,6 +56,9 @@ public:
     // Public method to compute TH, useful for HPlugin
     double computeTH() const;
 
+    // Read-only view of the accumulated samples, so HPlugin does not need to keep a second copy
+    const std::vector<double>& inputBuffer() const { return m_inputBuffer; }
+
 protected:
     size_t m_blockSize;
     size_t m_stepSize;

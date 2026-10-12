@@ -269,32 +269,34 @@ SHPlugin::getRemainingFeatures()
         n = m_inputBuffer.size();
     }
 
-    // Apply Hanning window to entire signal (seewave default)
-    std::vector<double> windowed(n);
+    // Apply Hanning window to entire signal (seewave default). Done in place: m_inputBuffer holds exactly n
+    // samples here, and each element becomes the same product as the separate windowed copy used to hold.
     for (size_t i = 0; i < n; ++i) {
         double w = 0.5 * (1.0 - std::cos(2.0 * M_PI * i / (n - 1)));
-        windowed[i] = m_inputBuffer[i] * w;
+        m_inputBuffer[i] = m_inputBuffer[i] * w;
     }
-    
+
     // Perform real-to-complex FFT using PocketFFT
     std::vector<std::complex<double>> fftOut(n / 2 + 1);
-    
+
     pocketfft::shape_t shape = {n};
     pocketfft::stride_t stride_in = {sizeof(double)};
     pocketfft::stride_t stride_out = {sizeof(std::complex<double>)};
     pocketfft::shape_t axes = {0};
-    
-    pocketfft::r2c(shape, stride_in, stride_out, axes, 
-                   pocketfft::FORWARD, windowed.data(), fftOut.data(), 1.0);
-    
+
+    pocketfft::r2c(shape, stride_in, stride_out, axes,
+                   pocketfft::FORWARD, m_inputBuffer.data(), fftOut.data(), 1.0);
+    std::vector<double>().swap(m_inputBuffer);      // no longer needed
+
     // Compute magnitude spectrum
     m_numBins = n / 2;
     m_accumulatedSpectrum.resize(m_numBins);
-    
+
     for (size_t i = 0; i < m_numBins; ++i) {
         m_accumulatedSpectrum[i] = 2.0 * std::abs(fftOut[i]);
     }
-    
+    std::vector<std::complex<double>>().swap(fftOut);
+
     m_frameCount = 1;
 
     double sh = computeSH();

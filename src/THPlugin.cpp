@@ -226,49 +226,49 @@ THPlugin::FeatureSet THPlugin::getRemainingFeatures()
     for (size_t i = 0; i < n; ++i) {
         padded[pad_start + i] = m_inputBuffer[i];
     }
-    
-    // Forward FFT using PocketFFT (real to complex)
-    std::vector<std::complex<double>> fftOut(n_padded / 2 + 1);
-    
+    // The accumulated samples are not needed again: release them before the large FFT buffers are allocated.
+    // (Memory only. Every operation below is the same as before, on the same values, in the same order.)
+    std::vector<double>().swap(m_inputBuffer);
+
+    // Forward FFT using PocketFFT (real to complex). The half spectrum is written straight into the first
+    // n_padded/2+1 entries of the analytic-spectrum array, which is then expanded in place.
+    std::vector<std::complex<double>> analyticFFT(n_padded);
+
     pocketfft::shape_t shape = {n_padded};
     pocketfft::stride_t stride_in = {sizeof(double)};
     pocketfft::stride_t stride_out = {sizeof(std::complex<double>)};
     pocketfft::shape_t axes = {0};
-    
-    pocketfft::r2c(shape, stride_in, stride_out, axes, 
-                   pocketfft::FORWARD, padded.data(), fftOut.data(), 1.0);
-    
-    std::vector<std::complex<double>> analyticFFT(n_padded);
-    
-    // Index 0 (DC)
-    analyticFFT[0] = fftOut[0];
-    
+
+    pocketfft::r2c(shape, stride_in, stride_out, axes,
+                   pocketfft::FORWARD, padded.data(), analyticFFT.data(), 1.0);
+    std::vector<double>().swap(padded);
+
+    // Index 0 (DC) stays as it is.
+
     // Positive frequencies (1 to n/2-1) - doubled
     for (size_t k = 1; k < n_padded / 2; ++k) {
-        analyticFFT[k] = 2.0 * fftOut[k];
+        analyticFFT[k] = 2.0 * analyticFFT[k];
     }
-    
-    // Nyquist (n/2) - stays as is
-    analyticFFT[n_padded / 2] = fftOut[n_padded / 2];
-    
+
+    // Nyquist (n/2) stays as it is.
+
     // Negative frequencies (n/2+1 to n-1) - zero
     for (size_t k = n_padded / 2 + 1; k < n_padded; ++k) {
         analyticFFT[k] = std::complex<double>(0.0, 0.0);
     }
-    
-    // Inverse FFT to get analytic signal
-    std::vector<std::complex<double>> analytic(n_padded);
-    
+
+    // Inverse FFT, in place, to get the analytic signal
     pocketfft::stride_t stride_c = {sizeof(std::complex<double>)};
     pocketfft::c2c(shape, stride_c, stride_c, axes,
-                   pocketfft::BACKWARD, analyticFFT.data(), analytic.data(), 1.0 / n_padded);
-    
+                   pocketfft::BACKWARD, analyticFFT.data(), analyticFFT.data(), 1.0 / n_padded);
+
     // Extract envelope (magnitude) and trim back to original length
     std::vector<double> envelope(n_original);
     size_t trim_start = nzp / 2;
     for (size_t i = 0; i < n_original; ++i) {
-        envelope[i] = std::abs(analytic[trim_start + i]);
+        envelope[i] = std::abs(analyticFFT[trim_start + i]);
     }
+    std::vector<std::complex<double>>().swap(analyticFFT);
     
     // Now compute TH on the envelope
     size_t N = n_original;
@@ -289,17 +289,12 @@ THPlugin::FeatureSet THPlugin::getRemainingFeatures()
         return fs;
     }
     
-    // Create PMF and replace zeros with epsilon
-    std::vector<double> pmf(N);
-    for (size_t i = 0; i < N; ++i) {
-        pmf[i] = envelope[i] / sumEnv;
-        if (pmf[i] == 0.0) pmf[i] = epsilon;
-    }
-    
-    // Compute Shannon entropy
+    // PMF (zeros replaced with epsilon) and Shannon entropy, accumulated in the same order as before
     double entropySum = 0.0;
     for (size_t i = 0; i < N; ++i) {
-        entropySum += pmf[i] * std::log(pmf[i]);
+        double p = envelope[i] / sumEnv;
+        if (p == 0.0) p = epsilon;
+        entropySum += p * std::log(p);
     }
     
     double Ht = -entropySum / std::log(static_cast<double>(N));
