@@ -12,6 +12,7 @@
 
 #include "vamp-sdk/Plugin.h"
 #include "vamp-sdk/FFT.h"
+#include "RowStore.h"
 #include <vector>
 #include <string>
 
@@ -80,10 +81,9 @@ protected:
     std::vector<float> m_sumAbsDiff;     // Running sum of |diff| per bin
     bool m_hasFirstFrame;
     
-    // Multi-window mode: store all spectral data
-    std::vector<float> m_spectralData;
-    size_t m_spectralWriteIdx;
-    
+    // Magnitude-squared spectra of all frames, one row per frame
+    RowStore m_spectral;
+
     enum WindowType {
         Hanning,
         Hamming

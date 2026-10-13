@@ -12,6 +12,7 @@
 
 #include "vamp-sdk/Plugin.h"
 #include "vamp-sdk/FFT.h"
+#include "SampleStore.h"
 #include <vector>
 #include <string>
 
@@ -75,7 +76,7 @@ protected:
 
     // Batch processing
     size_t m_batchSize;
-    std::vector<double> m_inputBuffer; 
+    SampleStore m_samples;   // every sample received, as float
     std::vector<float> m_spectralData;
     
     enum WindowType {

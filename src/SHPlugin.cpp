@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <numeric>
 #include <complex>
+#include <memory>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -187,16 +188,8 @@ SHPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_spectralData.clear();
     m_numBins = 0;
 
-    // Create FFT for blockSize
-    if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(m_blockSize));
-    
-    // Allocate FFT output buffer
-    m_fftOut.resize(m_blockSize + 2);
-    
-    // Accumulate all samples
-    m_inputBuffer.clear();
-    m_inputBuffer.reserve(m_blockSize * 1000);
+    // Accumulate all samples (the one FFT is made at the end, directly with pocketfft)
+    m_samples.init(m_blockSize);
     
     // Hanning window for STFT frames
     m_window.resize(m_blockSize);
@@ -214,7 +207,7 @@ void
 SHPlugin::reset()
 {
     m_spectralData.clear();
-    m_inputBuffer.clear();
+    m_samples.clear();
     m_frameCount = 0;
     m_globalMax = 0.0f;
     m_accumulatedSpectrum.clear();
@@ -232,9 +225,7 @@ SHPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
     m_totalSamples = frameNumber + m_blockSize;
     
     // Accumulate ALL samples - we'll do one big FFT at the end
-    for (size_t i = 0; i < m_blockSize; ++i) {
-        m_inputBuffer.push_back(static_cast<double>(inputBuffers[0][i]));
-    }
+    std::copy(inputBuffers[0], inputBuffers[0] + m_blockSize, m_samples.appendBlock());
     
     return fs;
 }
@@ -250,60 +241,63 @@ SHPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
     
-    size_t n = m_inputBuffer.size();
+    const size_t received = m_samples.size();
+    size_t n = received;
     if (n == 0) return fs;
 
     // Remove trailing zeros that may be padding from the last block
     // The host may pad the last block with zeros to fill it
-    while (n > 0 && m_inputBuffer[n-1] == 0.0) {
-        n--;
-    }
+    n = m_samples.sizeWithoutTrailingZeros();
     // Add back a small buffer in case file actually ends with zeros
     // This is a heuristic - check if we removed more than a block worth
-    size_t removed = m_inputBuffer.size() - n;
+    size_t removed = received - n;
     if (removed > 0 && removed < m_blockSize) {
         // Likely actual padding, keep the trimmed size
-        m_inputBuffer.resize(n);
     } else {
         // Either no zeros removed or too many - keep original
-        n = m_inputBuffer.size();
+        n = received;
     }
 
-    // Apply Hanning window to entire signal (seewave default). Done in place: m_inputBuffer holds exactly n
-    // samples here, and each element becomes the same product as the separate windowed copy used to hold.
-    for (size_t i = 0; i < n; ++i) {
-        double w = 0.5 * (1.0 - std::cos(2.0 * M_PI * i / (n - 1)));
-        m_inputBuffer[i] = m_inputBuffer[i] * w;
+    // Apply Hanning window to entire signal (seewave default), widening each sample to double as it is used
+    std::unique_ptr<double[]> data(new double[n]);
+    m_samples.forEachBlock(n, [&](const float* src, size_t first, size_t count) {
+        for (size_t j = 0; j < count; ++j) {
+            const size_t i = first + j;
+            double w = 0.5 * (1.0 - std::cos(2.0 * M_PI * i / (n - 1)));
+            data[i] = static_cast<double>(src[j]) * w;
+        }
+    });
+    m_samples.clear();                              // no longer needed
+
+    // Perform the real-to-complex FFT with the PocketFFT plan that pocketfft::r2c uses, on the array itself.
+    // r2c copies its input line into a work array of its own, runs this same exec on that and unpacks the
+    // result; running it here, in place, gives the same numbers without the second array. The result is in
+    // PocketFFT's half-complex order: r0, r1, i1, r2, i2, ... (with the real-only Nyquist value last for even n).
+    {
+        pocketfft::detail::pocketfft_r<double> plan(n);
+        plan.exec(data.get(), 1.0, true);
     }
 
-    // Perform real-to-complex FFT using PocketFFT. PocketFFT copies the whole input line into its own work array
-    // before it writes any output, so the n/2+1 complex results are written over the input instead of into a
-    // separate array. They take 2*(n/2+1) doubles, which is n+2 for even n (n+1 for odd n): make room for them.
-    const size_t nOut = n / 2 + 1;
-    m_inputBuffer.resize(2 * nOut);
-    std::complex<double>* fftOut = reinterpret_cast<std::complex<double>*>(m_inputBuffer.data());
-
-    pocketfft::shape_t shape = {n};
-    pocketfft::stride_t stride_in = {sizeof(double)};
-    pocketfft::stride_t stride_out = {sizeof(std::complex<double>)};
-    pocketfft::shape_t axes = {0};
-
-    pocketfft::r2c(shape, stride_in, stride_out, axes,
-                   pocketfft::FORWARD, m_inputBuffer.data(), fftOut, 1.0);
-
-    // Compute magnitude spectrum (same complex values, read back as pairs of doubles)
+    // Compute magnitude spectrum: bin 0 is (r0, 0), bin i is (r_i, i_i) = (data[2i-1], data[2i])
     m_numBins = n / 2;
     m_accumulatedSpectrum.resize(m_numBins);
 
-    const double* spec = m_inputBuffer.data();
-    for (size_t i = 0; i < m_numBins; ++i) {
-        m_accumulatedSpectrum[i] = 2.0 * std::abs(std::complex<double>(spec[2 * i], spec[2 * i + 1]));
+    const double* spec = data.get();
+    if (m_numBins > 0) {
+        m_accumulatedSpectrum[0] = 2.0 * std::abs(std::complex<double>(spec[0], 0.0));
     }
-    std::vector<double>().swap(m_inputBuffer);      // no longer needed
+    for (size_t i = 1; i < m_numBins; ++i) {
+        m_accumulatedSpectrum[i] = 2.0 * std::abs(std::complex<double>(spec[2 * i - 1], spec[2 * i]));
+    }
+    data.reset();                                   // no longer needed
 
     m_frameCount = 1;
 
     double sh = computeSH();
+
+    // The spectrum is not needed any more: release it now rather than with the plugin
+    std::vector<double>().swap(m_accumulatedSpectrum);
+    m_numBins = 0;
     
     Feature f;
     f.hasTimestamp = true;

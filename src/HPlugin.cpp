@@ -192,19 +192,18 @@ HPlugin::FeatureSet HPlugin::process(const float *const *inputBuffers, Vamp::Rea
 double HPlugin::computeSH() const
 {
     // Same samples, same order, same conversion to double as the separate copy this plugin used to keep
-    const std::vector<double>& samples = m_thPlugin->inputBuffer();
-    size_t n = samples.size();
+    const SampleStore& samples = m_thPlugin->samples();
+    const size_t received = samples.size();
+    size_t n = received;
 
     // Remove trailing zeros (host may pad last block)
-    while (n > 0 && samples[n-1] == 0.0) {
-        n--;
-    }
+    n = samples.sizeWithoutTrailingZeros();
     // Keep some zeros back if we removed too many (file might actually end with zeros)
-    size_t removed = samples.size() - n;
+    size_t removed = received - n;
     if (removed > 0 && removed < m_blockSize) {
         // Likely actual padding, keep trimmed size
     } else {
-        n = samples.size();
+        n = received;
     }
     
     if (n < m_wl) return 0.0;
@@ -214,31 +213,32 @@ double HPlugin::computeSH() const
     size_t frameCount = 0;
     
     std::vector<double> frame(m_wl);
-    std::vector<std::complex<double>> fftOut(m_wl / 2 + 1);
-    
-    pocketfft::shape_t shape = {m_wl};
-    pocketfft::stride_t stride_in = {sizeof(double)};
-    pocketfft::stride_t stride_out = {sizeof(std::complex<double>)};
-    pocketfft::shape_t axes = {0};
-    
-    const double* inputData = samples.data();
+    // The plan pocketfft::r2c builds (and discards) for every call, built once for all the frames. Its exec runs
+    // on the windowed frame in place; r2c would copy the frame to a work array, run this same exec and unpack the
+    // result. The result is in half-complex order: r0, r1, i1, r2, i2, ...
+    pocketfft::detail::pocketfft_r<double> plan(m_wl);
+
+    std::vector<float> scratch(m_wl);
     const float* win = m_window.data();
     const double wlInv = 2.0 / static_cast<double>(m_wl);
     
     for (size_t start = 0; start + m_wl <= n; start += m_wl) {
         // Apply Hanning window
-        const double* src = inputData + start;
+        const float* src = samples.view(start, m_wl, scratch.data());
         for (size_t i = 0; i < m_wl; ++i) {
-            frame[i] = src[i] * win[i];
+            frame[i] = static_cast<double>(src[i]) * win[i];
         }
         
         // FFT
-        pocketfft::r2c(shape, stride_in, stride_out, axes, 
-                       pocketfft::FORWARD, frame.data(), fftOut.data(), 1.0);
-        
-        // Accumulate magnitude spectrum
-        for (size_t i = 0; i < numBins; ++i) {
-            double mag = std::abs(fftOut[i]) * wlInv;
+        plan.exec(frame.data(), 1.0, true);
+
+        // Accumulate magnitude spectrum: bin 0 is (r0, 0), bin i is (frame[2i-1], frame[2i])
+        {
+            double mag = std::abs(std::complex<double>(frame[0], 0.0)) * wlInv;
+            avgSpectrum[0] += mag;
+        }
+        for (size_t i = 1; i < numBins; ++i) {
+            double mag = std::abs(std::complex<double>(frame[2 * i - 1], frame[2 * i])) * wlInv;
             avgSpectrum[i] += mag;
         }
         frameCount++;

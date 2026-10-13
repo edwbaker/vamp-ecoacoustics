@@ -11,6 +11,7 @@
 #define _TH_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
+#include "SampleStore.h"
 #include <vector>
 
 using std::string;
@@ -57,15 +58,15 @@ public:
     double computeTH() const;
 
     // Read-only view of the accumulated samples, so HPlugin does not need to keep a second copy
-    const std::vector<double>& inputBuffer() const { return m_inputBuffer; }
+    const SampleStore& samples() const { return m_samples; }
 
 protected:
     size_t m_blockSize;
     size_t m_stepSize;
     size_t m_totalSamples;
     
-    // Accumulate all samples for full-signal processing
-    std::vector<double> m_inputBuffer;
+    // Accumulate all samples for full-signal processing (as received: floats)
+    SampleStore m_samples;
 };
 
 #endif

@@ -55,7 +55,7 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t channel, size_t numFrames);
+    void processFrame(size_t channel, const double* frameData);
 
     // Internal
     size_t m_channels;
@@ -75,9 +75,6 @@ protected:
     std::vector<float> m_window;
     std::vector<std::vector<int>> m_binToBands;  // Pre-computed bin-to-bands mapping (each bin can be in multiple bands)
 
-    // Batch processing - per channel
-    size_t m_batchSize;
-    std::vector<std::vector<double>> m_inputBuffer_ch; 
     std::vector<std::vector<float>> m_spectralData_ch;
     
     enum WindowType {

@@ -47,6 +47,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <algorithm>
+#include <memory>
 #include <vector>
 #include <complex>
 
@@ -179,26 +181,36 @@ FFTComplex::inverse(const double *ci, double *co)
 class FFTReal::D
 {
 public:
-    D(int n) : m_n(n) { }
+    D(int n) : m_n(n), m_work(n) {
+        if (n > 0) m_plan.reset(new pocketfft::detail::pocketfft_r<double>(n));
+    }
     ~D() { }
 
+    // The same computation pocketfft::r2c does for a single forward line (general_r2c): copy the input into a
+    // work array, run the plan's exec on it in place, then unpack its half-complex result. The plan (twiddle
+    // table) is built once per FFTReal instead of once per call and the work array is reused, so the values
+    // are the same as before; only the repeated plan construction and allocations are gone.
     void forward(const double *ri, double *co) {
-        size_t n = m_n;
-        std::vector<double> in(n);
-        for(size_t i=0; i<n; ++i) in[i] = ri[i];
-        
-        std::vector<std::complex<double>> out(n/2 + 1);
-        
-        pocketfft::shape_t shape_in = {n};
-        pocketfft::stride_t stride_in = {sizeof(double)};
-        pocketfft::stride_t stride_out = {sizeof(std::complex<double>)};
-        size_t axis = 0;
-        
-        pocketfft::r2c(shape_in, stride_in, stride_out, axis, true, in.data(), out.data(), 1.0);
-        
-        for (size_t i = 0; i < n/2 + 1; ++i) {
-            co[i*2] = out[i].real();
-            co[i*2+1] = out[i].imag();
+        const size_t n = m_n;
+        if (n == 0) {                    // r2c returned without writing anything for an empty line
+            co[0] = 0.0;
+            co[1] = 0.0;
+            return;
+        }
+        double *w = m_work.data();
+        std::copy(ri, ri + n, w);
+        m_plan->exec(w, 1.0, true);
+
+        co[0] = w[0];
+        co[1] = 0.0;
+        size_t i = 1, ii = 1;
+        for (; i + 1 < n; i += 2, ++ii) {
+            co[ii*2] = w[i];
+            co[ii*2+1] = w[i+1];
+        }
+        if (i < n) {                     // Nyquist bin of an even length: real only
+            co[ii*2] = w[i];
+            co[ii*2+1] = 0.0;
         }
     }
 
@@ -227,6 +239,8 @@ public:
     
 private:
     size_t m_n;
+    std::unique_ptr<pocketfft::detail::pocketfft_r<double>> m_plan;
+    std::vector<double> m_work;
 };
 
 FFTReal::FFTReal(unsigned int n) :
