@@ -11,6 +11,7 @@
 // Matches soundecology::ndsi behavior
 
 #include "NDSIPlugin.h"
+#include "RealFFT.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -259,8 +260,7 @@ bool NDSIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_numBins = m_fftSize / 2;
     
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(m_fftSize));
-    m_fftOut.resize(m_fftSize + 2);
+    m_fft = new InPlaceRealFFT(m_fftSize);
     
     // Hamming window
     m_window.resize(m_fftSize);
@@ -273,7 +273,6 @@ bool NDSIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     
     // Pre-allocate work buffers for processOneSecond
     m_timeBuf.resize(2 * m_fftSize);
-    m_detrendBuf.resize(m_fftSize);
     m_windowPSD.resize(m_numBins);
     
     // Pre-compute detrending constants (sumT = 1+2+...+N, sumTT = 1²+2²+...+N²)
@@ -324,30 +323,27 @@ void NDSIPlugin::addWindowPSD(const double* timeBuf, double sumY, double sumTY)
     double a = (sumY - b * m_detrendSumT) * m_detrendNfftInv;
     // (a 32-bit signed counter: its conversion to double, the same values 1..nfft, can be done by SIMD)
     const int n32 = static_cast<int>(nfft);
+    double* detrended = m_fft->buffer();
     for (int i = 0; i < n32; ++i) {
         double t = static_cast<double>(i + 1);
-        m_detrendBuf[i] = timeBuf[i] - (a + b * t);
+        detrended[i] = timeBuf[i] - (a + b * t);
     }
-    
-    // Zero pad fftOut remainder
-    for (size_t i = nfft; i < m_fftOut.size(); ++i) m_fftOut[i] = 0.0;
 
-    // Execute FFT on detrended windowed data
-    m_fft->forward(m_detrendBuf.data(), m_fftOut.data());
-    
+    // Execute FFT on detrended windowed data (in the FFT's own buffer)
+    m_fft->forward();
+
     // Compute one-sided PSD for positive frequencies (skip DC)
-    const double* fftOut = m_fftOut.data();
-    for (size_t i = 1; i < m_numBins; ++i) {
-        double real = fftOut[2 * i];
-        double imag = fftOut[2 * i + 1];
-        m_windowPSD[i - 1] += (real * real + imag * imag) * m_psdNorm;
-    }
+    double* windowPSD = m_windowPSD.data();
+    const double psdNorm = m_psdNorm;
+    m_fft->forBins(1, m_numBins, [windowPSD, psdNorm](size_t i, double real, double imag) {
+        windowPSD[i - 1] += (real * real + imag * imag) * psdNorm;
+    });
     // Nyquist bin
-    {
-        double real = fftOut[2 * m_numBins];
-        double imag = fftOut[2 * m_numBins + 1];
-        m_windowPSD[m_numBins - 1] += (real * real + imag * imag) * m_psdNyquistNorm;
-    }
+    const double psdNyquistNorm = m_psdNyquistNorm;
+    const size_t nyquistBin = m_numBins;
+    m_fft->forBins(nyquistBin, nyquistBin + 1, [windowPSD, psdNyquistNorm, nyquistBin](size_t, double real, double imag) {
+        windowPSD[nyquistBin - 1] += (real * real + imag * imag) * psdNyquistNorm;
+    });
 }
 
 // Process one second of audio using Welch's method
