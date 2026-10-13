@@ -42,6 +42,7 @@
 #define POCKETFFT_NO_MULTITHREADING 1
 #endif
 #include "pocketfft_hdronly.h"
+#include "RealFFT.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -268,3 +269,30 @@ FFTReal::inverse(const double *ci, double *ro)
 }
 
 _VAMP_SDK_PLUGSPACE_END(FFT.cpp)
+
+// InPlaceRealFFT (RealFFT.h): the transform FFTReal::D::forward does, run in place on the caller's buffer.
+// pocketfft's plan (its twiddle table) is built once per object; exec() is called on the same n values and
+// leaves the same half-complex result as FFTReal::D::forward's work array held.
+struct InPlaceRealFFT::Plan
+{
+    explicit Plan(size_t n) : plan(n) { }
+    pocketfft::detail::pocketfft_r<double> plan;
+};
+
+InPlaceRealFFT::InPlaceRealFFT(size_t n) :
+    m_n(n),
+    m_buf(std::max<size_t>(n, 1), 0.0),   // zero, so that an empty transform reads as zeros like FFTReal's
+    m_plan(n > 0 ? new Plan(n) : nullptr)
+{
+}
+
+InPlaceRealFFT::~InPlaceRealFFT()
+{
+    delete m_plan;
+}
+
+void
+InPlaceRealFFT::forward()
+{
+    if (m_plan) m_plan->plan.exec(m_buf.data(), 1.0, true);
+}
