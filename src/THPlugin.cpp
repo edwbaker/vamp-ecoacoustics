@@ -18,6 +18,7 @@
 #include <numeric>
 #include <complex>
 #include <memory>
+#include <new>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -232,44 +233,40 @@ THPlugin::FeatureSet THPlugin::getRemainingFeatures()
 
     // The analytic spectrum: complex values for the bins 0..n/2 from the half-complex result, with the positive
     // frequencies (1 to n/2-1) doubled, DC and Nyquist as they are and the negative frequencies zero.
-    // (2.0 * complex is 2.0 * real and 2.0 * imaginary, as here.) Every element is written once, so the array is
-    // not zero-filled first: it is raw memory from operator new, in which the std::complex<double> objects (an
-    // implicit-lifetime type) exist, and their real and imaginary parts are written through the double view that
-    // std::complex guarantees (reinterpret_cast<double(&)[2]> of an element), not as a separate array of doubles.
+    // (2.0 * complex is 2.0 * real and 2.0 * imaginary, as here.) Every element is constructed once, with its final
+    // value, in raw memory from operator new (placement new starts each std::complex<double>'s lifetime), so the
+    // array is not zero-filled first and is written exactly once.
     struct RawMemory { void operator()(void* p) const { ::operator delete(p); } };
     std::unique_ptr<std::complex<double>, RawMemory> analytic(
         static_cast<std::complex<double>*>(::operator new(n_padded * sizeof(std::complex<double>))));
     std::complex<double>* analyticFFT = analytic.get();
     {
         const double* w = padded.get();
-        double* a = reinterpret_cast<double*>(analyticFFT);
         const size_t half = n_padded / 2;
+        auto construct = [analyticFFT](size_t k, double re, double im) {
+            ::new (static_cast<void*>(analyticFFT + k)) std::complex<double>(re, im);
+        };
 
         // Index 0 (DC) stays as it is.
-        a[0] = w[0];
-        a[1] = 0.0;
+        construct(0, w[0], 0.0);
 
         // Positive frequencies (1 to n/2-1) - doubled
         for (size_t k = 1; k < half; ++k) {
-            a[2 * k] = 2.0 * w[2 * k - 1];
-            a[2 * k + 1] = 2.0 * w[2 * k];
+            construct(k, 2.0 * w[2 * k - 1], 2.0 * w[2 * k]);
         }
 
         // Nyquist (n/2) stays as it is.
         if (half >= 1) {
             if (n_padded % 2 == 0) {
-                a[2 * half] = w[n_padded - 1];
-                a[2 * half + 1] = 0.0;
+                construct(half, w[n_padded - 1], 0.0);
             } else {
-                a[2 * half] = w[n_padded - 2];
-                a[2 * half + 1] = w[n_padded - 1];
+                construct(half, w[n_padded - 2], w[n_padded - 1]);
             }
         }
 
         // Negative frequencies (n/2+1 to n-1) - zero
         for (size_t k = half + 1; k < n_padded; ++k) {
-            a[2 * k] = 0.0;
-            a[2 * k + 1] = 0.0;
+            construct(k, 0.0, 0.0);
         }
     }
     padded.reset();
@@ -282,8 +279,10 @@ THPlugin::FeatureSet THPlugin::getRemainingFeatures()
                    pocketfft::BACKWARD, analyticFFT, analyticFFT, 1.0 / n_padded);
 
     // Extract envelope (magnitude) and trim back to original length. The envelope is written over the start of
-    // the analytic array: the value for index i goes to byte offset 8*i, which belongs to element i/2, and that
-    // has been read already (or is below trim_start and not used at all) when index i is reached.
+    // the analytic array, through the double view of its elements that std::complex guarantees
+    // (reinterpret_cast<double(&)[2]> of an element): the value for index i goes to byte offset 8*i, which belongs
+    // to element i/2, and that has been read already (or is below trim_start and not used at all) when index i
+    // is reached.
     // The sum for the PMF is accumulated in the same loop, in the same order.
     double* envelope = reinterpret_cast<double*>(analyticFFT);
     size_t trim_start = nzp / 2;
