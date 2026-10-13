@@ -11,6 +11,7 @@
 // Matches seewave::ACI
 
 #include "ACIPlugin.h"
+#include "RealFFT.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -228,9 +229,7 @@ ACIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftInput.resize(blockSize);
-    m_fftOut.resize(blockSize + 2);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     // Pre-compute window
     m_window.resize(m_blockSize);
@@ -267,25 +266,26 @@ ACIPlugin::reset()
 
 void ACIPlugin::processFrame(const float* input)
 {
-    // Apply window and copy to FFT input buffer
+    // Apply window, writing the samples straight into the FFT's own buffer
+    double* fftIn = m_fft->buffer();
     for (size_t i = 0; i < m_blockSize; ++i) {
-        m_fftInput[i] = static_cast<double>(input[i] * m_window[i]);
+        fftIn[i] = static_cast<double>(input[i] * m_window[i]);
     }
-    
+
     // Perform FFT
-    m_fft->forward(m_fftInput.data(), m_fftOut.data());
-    
+    m_fft->forward();
+
     size_t halfBlock = m_blockSize / 2;
-    
+
     // Store spectral data (magnitude squared)
     float* spectralPtr = m_spectral.appendRow();
-    for (size_t i = 0; i <= halfBlock; ++i) {
-        double real = m_fftOut[2 * i];
-        double imag = m_fftOut[2 * i + 1];
+    float globalMaxSq = m_globalMaxSq;
+    m_fft->forBins(0, halfBlock + 1, [spectralPtr, &globalMaxSq](size_t i, double real, double imag) {
         float magSq = static_cast<float>(real * real + imag * imag);
         spectralPtr[i] = magSq;
-        if (magSq > m_globalMaxSq) m_globalMaxSq = magSq;
-    }
+        if (magSq > globalMaxSq) globalMaxSq = magSq;
+    });
+    m_globalMaxSq = globalMaxSq;
     m_frameCount++;
 }
 
