@@ -11,6 +11,7 @@
 // Matches soundecology::bioacoustic_index
 
 #include "BIaccPlugin.h"
+#include "RealFFT.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -223,7 +224,6 @@ BIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     // Initialize per-channel vectors
     m_frameCount_ch.assign(m_channels, 0);
     m_globalMax_ch.assign(m_channels, 0.0f);
-    m_frameBuf.assign(blockSize, 0.0);
     m_spectralData_ch.resize(m_channels);
     m_accumulatedSpectrum_ch.resize(m_channels);
     
@@ -234,8 +234,7 @@ BIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftOut.resize(blockSize + 2);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     // Pre-compute window
     m_window.resize(m_blockSize);
@@ -281,32 +280,31 @@ BIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
     
     const float* win = m_window.data();
     
-    // Process each channel independently: window the block and transform it straight away
-    double* frame = m_frameBuf.data();
+    // Process each channel independently: window the block into the FFT's own buffer and transform it straight away
+    double* frame = m_fft->buffer();
     for (size_t ch = 0; ch < m_channels; ++ch) {
         const float* src = inputBuffers[ch];
         for (size_t i = 0; i < m_blockSize; ++i) {
             frame[i] = static_cast<double>(src[i]) * win[i];
         }
         
-        processFrame(ch, frame);
+        processFrame(ch);
     }
     
     return fs;
 }
 
-void BIaccPlugin::processFrame(size_t channel, const double* frameData)
+void BIaccPlugin::processFrame(size_t channel)
 {
     double* accSpectrum = m_accumulatedSpectrum_ch[channel].data();
     float& globalMax = m_globalMax_ch[channel];
     
     // Perform FFT
-    m_fft->forward(frameData, m_fftOut.data());
-    const double* fftOut = m_fftOut.data();
-    
+    m_fft->forward();
+
     // Compute magnitudes and accumulate
     // Bin 0 (DC)
-    double real0 = fftOut[0];
+    double real0 = m_fft->realOfBin0();
     double mag0 = std::abs(real0);
     if (static_cast<float>(mag0) > globalMax) globalMax = static_cast<float>(mag0);
     accSpectrum[0] += mag0 * mag0; // Accumulate Power
@@ -314,15 +312,13 @@ void BIaccPlugin::processFrame(size_t channel, const double* frameData)
     // Bins 1 to N/2 - 1. The global maximum is float(sqrt(magSq)) over all bins; float(sqrt(x)) never decreases as
     // x grows, so it is the same as float(sqrt(largest magSq)), which needs one sqrt per frame instead of one per bin.
     double maxSq = 0.0;
-    for (size_t i = 1; i < m_numBins; ++i) {
-        double real = fftOut[2 * i];
-        double imag = fftOut[2 * i + 1];
+    m_fft->forBins(1, m_numBins, [accSpectrum, &maxSq](size_t i, double real, double imag) {
         double magSq = real * real + imag * imag;
-        
+
         if (magSq > maxSq) maxSq = magSq;
-        
+
         accSpectrum[i] += magSq;
-    }
+    });
     if (static_cast<float>(std::sqrt(maxSq)) > globalMax) {
         globalMax = static_cast<float>(std::sqrt(maxSq));
     }
