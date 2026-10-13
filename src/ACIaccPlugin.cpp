@@ -249,11 +249,10 @@ ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_fftOut.resize(blockSize + 2);
     
     // Initialize per-channel storage
-    m_spectralData_ch.resize(m_channels);
+    m_spectral_ch.resize(m_channels);
     m_totalSamplesReceived.resize(m_channels, 0);
     m_lastBlockValidSamples.resize(m_channels, 0);
     m_frameCount_ch.resize(m_channels, 0);
-    m_spectralWriteIdx_ch.resize(m_channels, 0);
     
     // Calculate frames per cluster for initial reserve
     float framesPerSecond = m_inputSampleRate / m_stepSize;
@@ -261,7 +260,7 @@ ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     if (m_framesPerCluster < 1) m_framesPerCluster = 1;
     
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        m_spectralData_ch[ch].reserve(4096 * m_numBins);
+        m_spectral_ch[ch].init(m_numBins);
     }
     
     // Pre-compute window (float for memory efficiency)
@@ -284,11 +283,10 @@ void
 ACIaccPlugin::reset()
 {
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        m_spectralData_ch[ch].clear();
+        m_spectral_ch[ch].clear();
         m_totalSamplesReceived[ch] = 0;
         m_lastBlockValidSamples[ch] = 0;
         m_frameCount_ch[ch] = 0;
-        m_spectralWriteIdx_ch[ch] = 0;
     }
     m_frameCount = 0;
 }
@@ -306,19 +304,13 @@ void ACIaccPlugin::processFrame(size_t channel, const float* input)
     m_fft->forward(fftIn, m_fftOut.data());
     
     // Store magnitude squared (defer sqrt to getRemainingFeatures)
-    size_t requiredSize = m_spectralWriteIdx_ch[channel] + m_numBins;
-    if (m_spectralData_ch[channel].size() < requiredSize) {
-        m_spectralData_ch[channel].resize(requiredSize);
-    }
-    
-    float* spectralPtr = m_spectralData_ch[channel].data() + m_spectralWriteIdx_ch[channel];
+    float* spectralPtr = m_spectral_ch[channel].appendRow();
     const double* fftOut = m_fftOut.data();
     for (size_t i = 0; i < m_numBins; ++i) {
         double real = fftOut[2 * i];
         double imag = fftOut[2 * i + 1];
         spectralPtr[i] = static_cast<float>(real * real + imag * imag);
     }
-    m_spectralWriteIdx_ch[channel] = requiredSize;
     m_frameCount_ch[channel]++;
 }
 
@@ -354,7 +346,8 @@ ACIaccPlugin::getRemainingFeatures()
     FeatureSet fs;
     
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        size_t totalFrames = m_spectralWriteIdx_ch[ch] / m_numBins;
+        const RowStore& spectral = m_spectral_ch[ch];
+        size_t totalFrames = spectral.rows();
         if (totalFrames == 0) {
             Feature f;
             f.hasTimestamp = false;
@@ -405,7 +398,6 @@ ACIaccPlugin::getRemainingFeatures()
         }
         
         // Get raw pointer for faster access - data is magnitude squared
-        const float* data = m_spectralData_ch[ch].data();
         size_t numActiveBins = maxBinIndex - minBinIndex + 1;
         
         // Process clusters - matching soundecology's exact algorithm
@@ -431,7 +423,7 @@ ACIaccPlugin::getRemainingFeatures()
             std::fill(sumD, sumD + numActiveBins, 0.0f);
             
             // First frame: compute sqrt and store for reuse
-            const float* firstFrameSq = data + minFrame * m_numBins + minBinIndex;
+            const float* firstFrameSq = spectral.row(minFrame) + minBinIndex;
             for (size_t b = 0; b < numActiveBins; ++b) {
                 float mag = std::sqrt(firstFrameSq[b]);
                 sumI[b] = mag;
@@ -440,7 +432,7 @@ ACIaccPlugin::getRemainingFeatures()
             
             // Process subsequent frames - compute sqrt once per bin per frame
             for (size_t t = minFrame + 1; t < maxFrame; ++t) {
-                const float* frameSq = data + t * m_numBins + minBinIndex;
+                const float* frameSq = spectral.row(t) + minBinIndex;
                 
                 for (size_t b = 0; b < numActiveBins; ++b) {
                     float mag = std::sqrt(frameSq[b]);
@@ -463,6 +455,9 @@ ACIaccPlugin::getRemainingFeatures()
             delete[] sumD;
             delete[] prevMag;
         }
+
+        // The spectra of this channel are not needed any more: release them now rather than with the plugin
+        m_spectral_ch[ch].clear();
 
         Feature f;
         f.hasTimestamp = false;

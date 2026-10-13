@@ -272,7 +272,7 @@ bool NDSIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     }
     
     // Pre-allocate work buffers for processOneSecond
-    m_timeBuf.resize(m_fftSize);
+    m_timeBuf.resize(2 * m_fftSize);
     m_detrendBuf.resize(m_fftSize);
     m_windowPSD.resize(m_numBins);
     
@@ -315,10 +315,44 @@ void NDSIPlugin::reset()
     m_lastBlockValidSamples = 0;
 }
 
-// Process one second of audio using Welch's method
-void NDSIPlugin::processOneSecond(const vector<double>& samples, size_t channel)
+// Detrend one windowed segment (its sums are given), transform it and add its PSD to m_windowPSD
+void NDSIPlugin::addWindowPSD(const double* timeBuf, double sumY, double sumTY)
 {
-    const size_t n = samples.size();
+    const size_t nfft = m_fftSize;
+    
+    double b = (m_detrendDenom != 0.0) ? (static_cast<double>(nfft) * sumTY - m_detrendSumT * sumY) / m_detrendDenom : 0.0;
+    double a = (sumY - b * m_detrendSumT) * m_detrendNfftInv;
+    // (a 32-bit signed counter: its conversion to double, the same values 1..nfft, can be done by SIMD)
+    const int n32 = static_cast<int>(nfft);
+    for (int i = 0; i < n32; ++i) {
+        double t = static_cast<double>(i + 1);
+        m_detrendBuf[i] = timeBuf[i] - (a + b * t);
+    }
+    
+    // Zero pad fftOut remainder
+    for (size_t i = nfft; i < m_fftOut.size(); ++i) m_fftOut[i] = 0.0;
+
+    // Execute FFT on detrended windowed data
+    m_fft->forward(m_detrendBuf.data(), m_fftOut.data());
+    
+    // Compute one-sided PSD for positive frequencies (skip DC)
+    const double* fftOut = m_fftOut.data();
+    for (size_t i = 1; i < m_numBins; ++i) {
+        double real = fftOut[2 * i];
+        double imag = fftOut[2 * i + 1];
+        m_windowPSD[i - 1] += (real * real + imag * imag) * m_psdNorm;
+    }
+    // Nyquist bin
+    {
+        double real = fftOut[2 * m_numBins];
+        double imag = fftOut[2 * m_numBins + 1];
+        m_windowPSD[m_numBins - 1] += (real * real + imag * imag) * m_psdNyquistNorm;
+    }
+}
+
+// Process one second of audio using Welch's method
+void NDSIPlugin::processOneSecond(const float* samples, size_t n, size_t channel)
+{
     const size_t nfft = m_fftSize;
     const size_t noverlap = nfft / 2;
     
@@ -332,51 +366,50 @@ void NDSIPlugin::processOneSecond(const vector<double>& samples, size_t channel)
     std::fill(m_windowPSD.begin(), m_windowPSD.end(), 0.0);
     
     const float* win = m_window.data();
-    const double* sampleData = samples.data();
     
     while (start + nfft <= n) {
-        const double* src = sampleData + start;
-        for (size_t i = 0; i < nfft; ++i) {
-            m_timeBuf[i] = src[i] * win[i];
-        }
+        // The sums for the detrending are chains of dependent additions. Two windows are summed together so that
+        // the two chains run side by side; each sum still adds the same terms in the same order.
+        const size_t start1 = start + pwelchStep;
+        const bool pair = (start1 + nfft <= n);
+        const float* src = samples + start;
+        const float* src1 = pair ? samples + start1 : src;
+        double* timeBuf1 = m_timeBuf.data() + nfft;
+        const int n32 = static_cast<int>(nfft);
         
-        // Detrend using pre-computed constants
+        // Window, and detrend sums using pre-computed constants
         double sumY = 0.0, sumTY = 0.0;
-        for (size_t i = 0; i < nfft; ++i) {
-            double t = static_cast<double>(i + 1);
-            double y = m_timeBuf[i];
-            sumY += y;
-            sumTY += t * y;
-        }
-        double b = (m_detrendDenom != 0.0) ? (static_cast<double>(nfft) * sumTY - m_detrendSumT * sumY) / m_detrendDenom : 0.0;
-        double a = (sumY - b * m_detrendSumT) * m_detrendNfftInv;
-        for (size_t i = 0; i < nfft; ++i) {
-            double t = static_cast<double>(i + 1);
-            m_detrendBuf[i] = m_timeBuf[i] - (a + b * t);
-        }
-        
-        // Zero pad fftOut remainder
-        for (size_t i = nfft; i < m_fftOut.size(); ++i) m_fftOut[i] = 0.0;
-
-        // Execute FFT on detrended windowed data
-        m_fft->forward(m_detrendBuf.data(), m_fftOut.data());
-        
-        // Compute one-sided PSD for positive frequencies (skip DC)
-        const double* fftOut = m_fftOut.data();
-        for (size_t i = 1; i < m_numBins; ++i) {
-            double real = fftOut[2 * i];
-            double imag = fftOut[2 * i + 1];
-            m_windowPSD[i - 1] += (real * real + imag * imag) * m_psdNorm;
-        }
-        // Nyquist bin
-        {
-            double real = fftOut[2 * m_numBins];
-            double imag = fftOut[2 * m_numBins + 1];
-            m_windowPSD[m_numBins - 1] += (real * real + imag * imag) * m_psdNyquistNorm;
+        double sumY1 = 0.0, sumTY1 = 0.0;
+        if (pair) {
+            for (int i = 0; i < n32; ++i) {
+                double t = static_cast<double>(i + 1);
+                double y = static_cast<double>(src[i]) * win[i];
+                double y1 = static_cast<double>(src1[i]) * win[i];
+                m_timeBuf[i] = y;
+                timeBuf1[i] = y1;
+                sumY += y;
+                sumTY += t * y;
+                sumY1 += y1;
+                sumTY1 += t * y1;
+            }
+        } else {
+            for (int i = 0; i < n32; ++i) {
+                double t = static_cast<double>(i + 1);
+                double y = static_cast<double>(src[i]) * win[i];
+                m_timeBuf[i] = y;
+                sumY += y;
+                sumTY += t * y;
+            }
         }
         
+        addWindowPSD(m_timeBuf.data(), sumY, sumTY);
         nWindows++;
         start += pwelchStep;
+        if (pair) {
+            addWindowPSD(timeBuf1, sumY1, sumTY1);
+            nWindows++;
+            start += pwelchStep;
+        }
     }
     
     if (nWindows == 0) return;
@@ -414,13 +447,7 @@ Vamp::Plugin::FeatureSet NDSIPlugin::process(const float *const *inputBuffers, V
     
     // Buffer incoming samples for each channel separately
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        size_t oldSize = m_sampleBuffer[ch].size();
-        m_sampleBuffer[ch].resize(oldSize + m_blockSize);
-        double* dst = m_sampleBuffer[ch].data() + oldSize;
-        const float* src = inputBuffers[ch];
-        for (size_t i = 0; i < m_blockSize; ++i) {
-            dst[i] = static_cast<double>(src[i]);
-        }
+        m_sampleBuffer[ch].insert(m_sampleBuffer[ch].end(), inputBuffers[ch], inputBuffers[ch] + m_blockSize);
     }
     
     // Process complete 1-second chunks, but KEEP ONE SECOND buffered
@@ -429,8 +456,7 @@ Vamp::Plugin::FeatureSet NDSIPlugin::process(const float *const *inputBuffers, V
     
     while (m_sampleBuffer[0].size() >= 2 * samplesPerSecond) {
         for (size_t ch = 0; ch < m_channels; ++ch) {
-            vector<double> oneSecond(m_sampleBuffer[ch].begin(), m_sampleBuffer[ch].begin() + samplesPerSecond);
-            processOneSecond(oneSecond, ch);
+            processOneSecond(m_sampleBuffer[ch].data(), samplesPerSecond, ch);
             m_sampleBuffer[ch].erase(m_sampleBuffer[ch].begin(), m_sampleBuffer[ch].begin() + samplesPerSecond);
         }
     }
@@ -587,8 +613,7 @@ NDSIPlugin::FeatureSet NDSIPlugin::getRemainingFeatures()
     // Process remaining complete seconds for each channel
     while (m_secondCount[0] < expectedSeconds && m_sampleBuffer[0].size() >= samplesPerSecond) {
         for (size_t ch = 0; ch < m_channels; ++ch) {
-            vector<double> oneSecond(m_sampleBuffer[ch].begin(), m_sampleBuffer[ch].begin() + samplesPerSecond);
-            processOneSecond(oneSecond, ch);
+            processOneSecond(m_sampleBuffer[ch].data(), samplesPerSecond, ch);
             m_sampleBuffer[ch].erase(m_sampleBuffer[ch].begin(), m_sampleBuffer[ch].begin() + samplesPerSecond);
         }
     }

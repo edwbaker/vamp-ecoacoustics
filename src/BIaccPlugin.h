@@ -55,7 +55,7 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t channel, size_t numFrames);
+    void processFrame(size_t channel, const double* frameData);
 
     // Internal
     size_t m_channels;
@@ -72,9 +72,8 @@ protected:
     std::vector<double> m_fftOut;
     std::vector<float> m_window;
 
-    // Batch processing - per channel
-    size_t m_batchSize;
-    std::vector<std::vector<double>> m_inputBuffer_ch; 
+    // Windowed frame being transformed
+    std::vector<double> m_frameBuf;
     std::vector<std::vector<float>> m_spectralData_ch;
     
     enum WindowType {

@@ -28,7 +28,6 @@ BIaccPlugin::BIaccPlugin(float inputSampleRate) :
     m_stepSize(0),
     m_numBins(0),
     m_fft(nullptr),
-    m_batchSize(256),
     m_windowType(Hanning),
     m_minFreq(2000.0f),
     m_maxFreq(8000.0f)
@@ -224,12 +223,11 @@ BIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     // Initialize per-channel vectors
     m_frameCount_ch.assign(m_channels, 0);
     m_globalMax_ch.assign(m_channels, 0.0f);
-    m_inputBuffer_ch.resize(m_channels);
+    m_frameBuf.assign(blockSize, 0.0);
     m_spectralData_ch.resize(m_channels);
     m_accumulatedSpectrum_ch.resize(m_channels);
     
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        m_inputBuffer_ch[ch].reserve(blockSize * m_batchSize);
         m_spectralData_ch[ch].clear();
         m_accumulatedSpectrum_ch[ch].assign(m_numBins, 0.0);
     }
@@ -269,7 +267,6 @@ BIaccPlugin::reset()
 {
     for (size_t ch = 0; ch < m_channels; ++ch) {
         m_spectralData_ch[ch].clear();
-        m_inputBuffer_ch[ch].clear();
         m_frameCount_ch[ch] = 0;
         m_globalMax_ch[ch] = 0.0f;
         m_accumulatedSpectrum_ch[ch].assign(m_numBins, 0.0);
@@ -284,84 +281,59 @@ BIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
     
     const float* win = m_window.data();
     
-    // Process each channel independently
+    // Process each channel independently: window the block and transform it straight away
+    double* frame = m_frameBuf.data();
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        // Apply window and append to input buffer for this channel
-        size_t oldSize = m_inputBuffer_ch[ch].size();
-        m_inputBuffer_ch[ch].resize(oldSize + m_blockSize);
-        double* dst = m_inputBuffer_ch[ch].data() + oldSize;
         const float* src = inputBuffers[ch];
         for (size_t i = 0; i < m_blockSize; ++i) {
-            dst[i] = static_cast<double>(src[i]) * win[i];
+            frame[i] = static_cast<double>(src[i]) * win[i];
         }
         
-        // Check if we have enough frames for a batch
-        size_t currentFrames = m_inputBuffer_ch[ch].size() / m_blockSize;
-        if (currentFrames >= m_batchSize) {
-            processBatch(ch, currentFrames);
-            m_inputBuffer_ch[ch].clear();
-        }
+        processFrame(ch, frame);
     }
     
     return fs;
 }
 
-void BIaccPlugin::processBatch(size_t channel, size_t numFrames)
+void BIaccPlugin::processFrame(size_t channel, const double* frameData)
 {
-    if (numFrames == 0) return;
-
-    size_t blockSize = m_blockSize;
     double* accSpectrum = m_accumulatedSpectrum_ch[channel].data();
     float& globalMax = m_globalMax_ch[channel];
     
-    for (size_t frame = 0; frame < numFrames; ++frame) {
-        // Get pointer to current frame in input buffer
-        double* frameData = &m_inputBuffer_ch[channel][frame * blockSize];
-        
-        // Perform FFT
-        m_fft->forward(frameData, m_fftOut.data());
-        const double* fftOut = m_fftOut.data();
-        
-        // Compute magnitudes and accumulate
-        // Bin 0 (DC)
-        double real0 = fftOut[0];
-        double mag0 = std::abs(real0);
-        if (static_cast<float>(mag0) > globalMax) globalMax = static_cast<float>(mag0);
-        accSpectrum[0] += mag0 * mag0; // Accumulate Power
+    // Perform FFT
+    m_fft->forward(frameData, m_fftOut.data());
+    const double* fftOut = m_fftOut.data();
+    
+    // Compute magnitudes and accumulate
+    // Bin 0 (DC)
+    double real0 = fftOut[0];
+    double mag0 = std::abs(real0);
+    if (static_cast<float>(mag0) > globalMax) globalMax = static_cast<float>(mag0);
+    accSpectrum[0] += mag0 * mag0; // Accumulate Power
 
-        // Bins 1 to N/2 - 1
-        for (size_t i = 1; i < m_numBins; ++i) {
-            double real = fftOut[2 * i];
-            double imag = fftOut[2 * i + 1];
-            double magSq = real * real + imag * imag;
-            double magnitude = std::sqrt(magSq);
-            
-            if (static_cast<float>(magnitude) > globalMax) {
-                globalMax = static_cast<float>(magnitude);
-            }
-            
-            accSpectrum[i] += magSq;
-        }
+    // Bins 1 to N/2 - 1. The global maximum is float(sqrt(magSq)) over all bins; float(sqrt(x)) never decreases as
+    // x grows, so it is the same as float(sqrt(largest magSq)), which needs one sqrt per frame instead of one per bin.
+    double maxSq = 0.0;
+    for (size_t i = 1; i < m_numBins; ++i) {
+        double real = fftOut[2 * i];
+        double imag = fftOut[2 * i + 1];
+        double magSq = real * real + imag * imag;
         
-        m_frameCount_ch[channel]++;
+        if (magSq > maxSq) maxSq = magSq;
+        
+        accSpectrum[i] += magSq;
     }
+    if (static_cast<float>(std::sqrt(maxSq)) > globalMax) {
+        globalMax = static_cast<float>(std::sqrt(maxSq));
+    }
+    
+    m_frameCount_ch[channel]++;
 }
 
 Vamp::Plugin::FeatureSet
 BIaccPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
-    
-    // Process any remaining frames in the buffer for each channel
-    for (size_t ch = 0; ch < m_channels; ++ch) {
-        if (!m_inputBuffer_ch[ch].empty()) {
-            size_t remainingFrames = m_inputBuffer_ch[ch].size() / m_blockSize;
-            if (remainingFrames > 0) {
-                processBatch(ch, remainingFrames);
-            }
-            m_inputBuffer_ch[ch].clear();
-        }
-    }
     
     // Calculate BI for each channel
     for (size_t ch = 0; ch < m_channels; ++ch) {
