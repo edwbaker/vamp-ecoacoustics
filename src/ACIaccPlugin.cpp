@@ -11,6 +11,7 @@
 // Matches soundecology::acoustic_complexity
 
 #include "ACIaccPlugin.h"
+#include "RealFFT.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -244,9 +245,7 @@ ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftInput.resize(blockSize);
-    m_fftOut.resize(blockSize + 2);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     // Initialize per-channel storage
     m_spectral_ch.resize(m_channels);
@@ -293,24 +292,21 @@ ACIaccPlugin::reset()
 
 void ACIaccPlugin::processFrame(size_t channel, const float* input)
 {
-    // Apply window and copy to FFT input buffer
+    // Apply window, writing the samples straight into the FFT's own buffer
     const float* win = m_window.data();
-    double* fftIn = m_fftInput.data();
+    double* fftIn = m_fft->buffer();
     for (size_t i = 0; i < m_blockSize; ++i) {
         fftIn[i] = static_cast<double>(input[i]) * win[i];
     }
-    
+
     // Perform FFT
-    m_fft->forward(fftIn, m_fftOut.data());
-    
+    m_fft->forward();
+
     // Store magnitude squared (defer sqrt to getRemainingFeatures)
     float* spectralPtr = m_spectral_ch[channel].appendRow();
-    const double* fftOut = m_fftOut.data();
-    for (size_t i = 0; i < m_numBins; ++i) {
-        double real = fftOut[2 * i];
-        double imag = fftOut[2 * i + 1];
+    m_fft->forBins(0, m_numBins, [spectralPtr](size_t i, double real, double imag) {
         spectralPtr[i] = static_cast<float>(real * real + imag * imag);
-    }
+    });
     m_frameCount_ch[channel]++;
 }
 

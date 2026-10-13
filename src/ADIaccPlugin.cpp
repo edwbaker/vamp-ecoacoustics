@@ -11,6 +11,7 @@
 // Matches soundecology::acoustic_diversity
 
 #include "ADIaccPlugin.h"
+#include "RealFFT.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -254,9 +255,7 @@ bool ADIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftOut.resize(blockSize + 2);
-    m_fftInput.resize(blockSize);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     m_window.resize(m_blockSize);
     double denom = static_cast<double>(m_windowType == Hamming ? m_blockSize - 1 : m_blockSize);
@@ -328,20 +327,20 @@ ADIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp
         // Track actual samples received
         m_sampleCount_ch[ch] += m_blockSize;
         
-        // Window the block and transform it at once
-        double* dst = m_fftInput.data();
+        // Window the block straight into the FFT's own buffer and transform it at once
+        double* dst = m_fft->buffer();
         const float* src = inputBuffers[ch];
         for (size_t i = 0; i < m_blockSize; ++i) {
             dst[i] = static_cast<double>(src[i]) * win[i];
         }
         
-        processFrame(ch, dst);
+        processFrame(ch);
     }
     
     return fs;
 }
 
-void ADIaccPlugin::processFrame(size_t channel, const double* frameData)
+void ADIaccPlugin::processFrame(size_t channel)
 {
     // Initialize bands if needed (same for all channels)
     if (!m_bandsInitialized) {
@@ -380,7 +379,7 @@ void ADIaccPlugin::processFrame(size_t channel, const double* frameData)
     
     float& globalMax = m_globalMax_ch[channel];
     auto& histograms = m_bandHistograms_ch[channel];
-    const double* fftOut = m_fftOut.data();
+    const double* frameData = m_fft->buffer();
 
     // Check if this frame is all zeros (zero-padded by host). The energy is a sum of non-negative terms, so it is
     // at least as large as any one of them: once a single term reaches the threshold the frame is not a padded one,
@@ -400,12 +399,10 @@ void ADIaccPlugin::processFrame(size_t channel, const double* frameData)
         return;
     }
     
-    m_fft->forward(frameData, m_fftOut.data());
+    m_fft->forward();
 
     // Process bins 0 to N/2-1 (excluding Nyquist) to match seewave::spectro
-    for (size_t b = 0; b < m_numBins; ++b) {
-        double real = fftOut[2 * b];
-        double imag = fftOut[2 * b + 1];
+    m_fft->forBins(0, m_numBins, [&](size_t b, double real, double imag) {
         double magnitude = std::sqrt(real * real + imag * imag);
         
         if (static_cast<float>(magnitude) > globalMax) globalMax = static_cast<float>(magnitude);
@@ -424,8 +421,8 @@ void ADIaccPlugin::processFrame(size_t channel, const double* frameData)
         for (int band : bands) {
             histograms[band][histBin]++;
         }
-    }
-    
+    });
+
     m_frameCount_ch[channel]++;
 }
 

@@ -11,6 +11,7 @@
 // Matches soundecology::acoustic_evenness
 
 #include "AEIaccPlugin.h"
+#include "RealFFT.h"
 #include "DbAbove.h"
 #include <cmath>
 #include <algorithm>
@@ -244,7 +245,6 @@ AEIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_frameCount_ch.assign(m_channels, 0);
     m_globalMax_ch.assign(m_channels, 0.0f);
     m_magnitude_ch.resize(m_channels);
-    m_frameBuf.assign(blockSize, 0.0);
     m_spectralData_ch.resize(m_channels);
     m_bandAboveThresholdCount_ch.resize(m_channels);
     m_bandTotalCount_ch.resize(m_channels);
@@ -256,8 +256,7 @@ AEIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftOut.resize(blockSize + 2);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     // Pre-compute window
     m_window.resize(m_blockSize);
@@ -362,22 +361,22 @@ void AEIaccPlugin::initBands()
 void AEIaccPlugin::processBlock(size_t channel, const float* input)
 {
     const size_t blockSize = m_blockSize;
-    double* frameData = m_frameBuf.data();
+    double* frameData = m_fft->buffer();
     for (size_t i = 0; i < blockSize; ++i) {
         frameData[i] = input[i] * m_window[i];
     }
-    m_fft->forward(frameData, m_fftOut.data());
-    
+    m_fft->forward();
+
     double* magnitudes = m_magnitude_ch[channel].appendRow();
-    for (size_t b = 0; b < m_numBins; ++b) {
-        double real = m_fftOut[2 * b];
-        double imag = m_fftOut[2 * b + 1];
+    float& globalMax = m_globalMax_ch[channel];
+    const size_t windowLength = m_blockSize;
+    m_fft->forBins(0, m_numBins, [magnitudes, &globalMax, windowLength](size_t b, double real, double imag) {
         double magnitude = std::sqrt(real * real + imag * imag);
         // Apply R's scaling: divide by window length, multiply by 2
-        magnitude = magnitude / m_blockSize * 2.0;
-        if (static_cast<float>(magnitude) > m_globalMax_ch[channel]) m_globalMax_ch[channel] = static_cast<float>(magnitude);
+        magnitude = magnitude / windowLength * 2.0;
+        if (static_cast<float>(magnitude) > globalMax) globalMax = static_cast<float>(magnitude);
         magnitudes[b] = magnitude;
-    }
+    });
     
     m_frameCount_ch[channel]++;
 }
