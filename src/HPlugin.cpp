@@ -183,7 +183,8 @@ void HPlugin::reset()
 
 HPlugin::FeatureSet HPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
 {
-    // The TH plugin accumulates the samples (as doubles, in arrival order) for both indices
+    // The TH plugin accumulates the samples (as received, floats, in arrival order) for both indices; each is
+    // widened to double where it is used
     m_thPlugin->process(inputBuffers, timestamp);
 
     return FeatureSet();
@@ -191,7 +192,8 @@ HPlugin::FeatureSet HPlugin::process(const float *const *inputBuffers, Vamp::Rea
 
 double HPlugin::computeSH() const
 {
-    // Same samples, same order, same conversion to double as the separate copy this plugin used to keep
+    // The samples TH accumulated (floats), widened to double here as they are used: the same values, in the same
+    // order, as the separate double copy this plugin used to keep
     const SampleStore& samples = m_thPlugin->samples();
     const size_t received = samples.size();
     size_t n = received;

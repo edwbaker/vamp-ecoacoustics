@@ -233,11 +233,16 @@ THPlugin::FeatureSet THPlugin::getRemainingFeatures()
     // The analytic spectrum: complex values for the bins 0..n/2 from the half-complex result, with the positive
     // frequencies (1 to n/2-1) doubled, DC and Nyquist as they are and the negative frequencies zero.
     // (2.0 * complex is 2.0 * real and 2.0 * imaginary, as here.) Every element is written once, so the array is
-    // not zero-filled first.
-    std::unique_ptr<double[]> analyticData(new double[2 * n_padded]);
+    // not zero-filled first: it is raw memory from operator new, in which the std::complex<double> objects (an
+    // implicit-lifetime type) exist, and their real and imaginary parts are written through the double view that
+    // std::complex guarantees (reinterpret_cast<double(&)[2]> of an element), not as a separate array of doubles.
+    struct RawMemory { void operator()(void* p) const { ::operator delete(p); } };
+    std::unique_ptr<std::complex<double>, RawMemory> analytic(
+        static_cast<std::complex<double>*>(::operator new(n_padded * sizeof(std::complex<double>))));
+    std::complex<double>* analyticFFT = analytic.get();
     {
         const double* w = padded.get();
-        double* a = analyticData.get();
+        double* a = reinterpret_cast<double*>(analyticFFT);
         const size_t half = n_padded / 2;
 
         // Index 0 (DC) stays as it is.
@@ -270,7 +275,6 @@ THPlugin::FeatureSet THPlugin::getRemainingFeatures()
     padded.reset();
 
     // Inverse FFT, in place, to get the analytic signal
-    std::complex<double>* analyticFFT = reinterpret_cast<std::complex<double>*>(analyticData.get());
     pocketfft::shape_t shape = {n_padded};
     pocketfft::shape_t axes = {0};
     pocketfft::stride_t stride_c = {sizeof(std::complex<double>)};
@@ -281,7 +285,7 @@ THPlugin::FeatureSet THPlugin::getRemainingFeatures()
     // the analytic array: the value for index i goes to byte offset 8*i, which belongs to element i/2, and that
     // has been read already (or is below trim_start and not used at all) when index i is reached.
     // The sum for the PMF is accumulated in the same loop, in the same order.
-    double* envelope = analyticData.get();
+    double* envelope = reinterpret_cast<double*>(analyticFFT);
     size_t trim_start = nzp / 2;
     double sumEnv = 0.0;
     for (size_t i = 0; i < n_original; ++i) {
