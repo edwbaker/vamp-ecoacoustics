@@ -22,6 +22,12 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+namespace {
+// Declared defaults, shared by the constructor and getParameterDescriptors()
+const float kDefaultMinFreq = 2000.0f;   // Hz
+const float kDefaultMaxFreq = 8000.0f;   // Hz
+}
+
 BIaccPlugin::BIaccPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_channels(0),
@@ -30,8 +36,8 @@ BIaccPlugin::BIaccPlugin(float inputSampleRate) :
     m_numBins(0),
     m_fft(nullptr),
     m_windowType(Hanning),
-    m_minFreq(2000.0f),
-    m_maxFreq(8000.0f)
+    m_minFreq(kDefaultMinFreq),
+    m_maxFreq(kDefaultMaxFreq)
 {
 }
 
@@ -109,7 +115,7 @@ BIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2.0f;
-    d.defaultValue = 2000.0f;
+    d.defaultValue = kDefaultMinFreq;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -119,7 +125,7 @@ BIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2.0f;
-    d.defaultValue = 8000.0f;
+    d.defaultValue = kDefaultMaxFreq;
     d.isQuantized = false;
     list.push_back(d);
 

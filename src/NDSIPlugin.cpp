@@ -24,6 +24,14 @@
 using std::string;
 using std::vector;
 
+namespace {
+// Declared defaults (Hz), shared by the constructor and getParameterDescriptors()
+const float kDefaultAnthroMin = 1000.0f;
+const float kDefaultAnthroMax = 2000.0f;
+const float kDefaultBioMin = 2000.0f;
+const float kDefaultBioMax = 11000.0f;
+}
+
 NDSIPlugin::NDSIPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_channels(0),
@@ -32,10 +40,10 @@ NDSIPlugin::NDSIPlugin(float inputSampleRate) :
     m_fftSize(1024),
     m_numBins(512),
     m_secondCount(0),
-    m_anthroMin(1000.0f),
-    m_anthroMax(2000.0f),
-    m_bioMin(2000.0f),
-    m_bioMax(11000.0f),
+    m_anthroMin(kDefaultAnthroMin),
+    m_anthroMax(kDefaultAnthroMax),
+    m_bioMin(kDefaultBioMin),
+    m_bioMax(kDefaultBioMax),
     m_fft(nullptr),
     m_windowSumSq(0.0)
 {
@@ -114,26 +122,26 @@ NDSIPlugin::ParameterList NDSIPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2;
-    d.defaultValue = 1000;
+    d.defaultValue = kDefaultAnthroMin;
     d.isQuantized = false;
     list.push_back(d);
 
     d.identifier = "anthroMax";
     d.name = "Anthropophony Max Freq";
     d.description = "Maximum frequency for anthropophony (Hz)";
-    d.defaultValue = 2000;
+    d.defaultValue = kDefaultAnthroMax;
     list.push_back(d);
 
     d.identifier = "bioMin";
     d.name = "Biophony Min Freq";
     d.description = "Minimum frequency for biophony (Hz)";
-    d.defaultValue = 2000;
+    d.defaultValue = kDefaultBioMin;
     list.push_back(d);
 
     d.identifier = "bioMax";
     d.name = "Biophony Max Freq";
     d.description = "Maximum frequency for biophony (Hz)";
-    d.defaultValue = 11000;
+    d.defaultValue = kDefaultBioMax;
     list.push_back(d);
 
     return list;

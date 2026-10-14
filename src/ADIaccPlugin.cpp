@@ -27,6 +27,13 @@
 #define ADI_DEBUG 0
 #endif
 
+namespace {
+// Declared defaults, shared by the constructor and getParameterDescriptors()
+const float kDefaultMaxFreqKHz = 10.0f;   // kHz (held internally in Hz)
+const float kDefaultDbThreshold = -50.0f; // dBFS
+const float kDefaultFreqStep = 1000.0f;   // Hz
+}
+
 ADIaccPlugin::ADIaccPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_channels(0),
@@ -36,9 +43,9 @@ ADIaccPlugin::ADIaccPlugin(float inputSampleRate) :
     m_fft(nullptr),
     m_windowType(Hanning),
     m_minFreq(0.0f),
-    m_maxFreq(10000.0f),
-    m_dbThreshold(-50.0f),
-    m_freqStep(1000.0f)
+    m_maxFreq(kDefaultMaxFreqKHz * 1000.0f),
+    m_dbThreshold(kDefaultDbThreshold),
+    m_freqStep(kDefaultFreqStep)
 {
 }
 
@@ -116,7 +123,7 @@ ADIaccPlugin::getParameterDescriptors() const
     d.unit = "kHz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2000.0f;
-    d.defaultValue = 10.0f;
+    d.defaultValue = kDefaultMaxFreqKHz;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -126,7 +133,7 @@ ADIaccPlugin::getParameterDescriptors() const
     d.unit = "dB";
     d.minValue = -120.0f;
     d.maxValue = 0.0f;
-    d.defaultValue = -50.0f;
+    d.defaultValue = kDefaultDbThreshold;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -136,7 +143,7 @@ ADIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 100.0f;
     d.maxValue = 10000.0f;
-    d.defaultValue = 1000.0f;
+    d.defaultValue = kDefaultFreqStep;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -146,7 +153,7 @@ ADIaccPlugin::getParameterDescriptors() const
 float
 ADIaccPlugin::getParameter(string identifier) const
 {
-    if (identifier == "maxFreq") return m_maxFreq;
+    if (identifier == "maxFreq") return m_maxFreq / 1000.0f;
     if (identifier == "dbThreshold") return m_dbThreshold;
     if (identifier == "freqStep") return m_freqStep;
     return 0;
@@ -156,7 +163,7 @@ void
 ADIaccPlugin::setParameter(string identifier, float value)
 {
     if (identifier == "maxFreq") {
-        m_maxFreq = value;
+        m_maxFreq = value * 1000.0f; // parameter is in kHz, held in Hz
     } else if (identifier == "dbThreshold") {
         m_dbThreshold = value;
     } else if (identifier == "freqStep") {
