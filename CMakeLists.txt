@@ -20,6 +20,11 @@ endif()
 file(GLOB PLUGIN_SOURCES src/*.cpp)
 file(GLOB PLUGIN_HEADERS src/*.h)
 
+# Test runner: the plugin classes compiled straight into an executable (no Vamp host
+# needed), so leave out the files that only exist to export the shared library
+set(TEST_SOURCES ${PLUGIN_SOURCES})
+list(FILTER TEST_SOURCES EXCLUDE REGEX "(plugins|PluginAdapter)\\.cpp$")
+
 # Add module definition file for Windows exports
 if(WIN32)
     set(PLUGIN_SOURCES ${PLUGIN_SOURCES} src/vamp-ecoacoustics.def)
@@ -39,6 +44,15 @@ set_target_properties(vamp-ecoacoustics PROPERTIES
     OUTPUT_NAME "vamp-ecoacoustics"
     PREFIX ""
 )
+
+# Tests: cmake --build build --target test_indices && ctest --test-dir build -C Release
+enable_testing()
+add_executable(test_indices EXCLUDE_FROM_ALL tests/test_indices.cpp ${TEST_SOURCES})
+target_include_directories(test_indices PRIVATE src ext ext/vamp ext/vamp-sdk tests)
+if(NOT WIN32)
+    target_link_libraries(test_indices PRIVATE m)
+endif()
+add_test(NAME indices COMMAND test_indices)
 
 # Optionally, install target
 install(TARGETS vamp-ecoacoustics DESTINATION lib)

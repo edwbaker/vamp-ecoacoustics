@@ -146,7 +146,7 @@ ADIaccPlugin::getParameterDescriptors() const
 float
 ADIaccPlugin::getParameter(string identifier) const
 {
-    if (identifier == "maxFreq") return m_maxFreq;
+    if (identifier == "maxFreq") return m_maxFreq / 1000.0f;  // stored in Hz, exposed in kHz
     if (identifier == "dbThreshold") return m_dbThreshold;
     if (identifier == "freqStep") return m_freqStep;
     return 0;
@@ -156,7 +156,7 @@ void
 ADIaccPlugin::setParameter(string identifier, float value)
 {
     if (identifier == "maxFreq") {
-        m_maxFreq = value;
+        m_maxFreq = value * 1000.0f;
     } else if (identifier == "dbThreshold") {
         m_dbThreshold = value;
     } else if (identifier == "freqStep") {

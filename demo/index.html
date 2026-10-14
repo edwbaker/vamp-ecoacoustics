@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ecoacoustic Indices Demo</title>
+<meta name="description" content="Acoustic indices from the vamp-ecoacoustics Vamp plugins, compiled to WebAssembly and run in the browser.">
+<style>
+:root {
+    color-scheme: light dark;
+    --bg: #f4f6f3;
+    --surface: #ffffff;
+    --text: #17201b;
+    --muted: #5a6960;
+    --border: #dbe2dc;
+    --accent: #1d6f52;
+    --accent-text: #ffffff;
+    --accent-soft: #e2efe8;
+    --danger: #b42318;
+    --shadow: 0 1px 2px rgb(16 24 20 / 0.05), 0 4px 12px rgb(16 24 20 / 0.04);
+    --radius: 10px;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0e1311;
+        --surface: #161d1a;
+        --text: #e5ebe7;
+        --muted: #93a39a;
+        --border: #27312c;
+        --accent: #5cc69a;
+        --accent-text: #08130e;
+        --accent-soft: #1b2b23;
+        --danger: #f97066;
+        --shadow: none;
+    }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 16px 64px; }
+a { color: var(--accent); }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+.lede { margin: 0 0 16px; color: var(--muted); max-width: 62ch; }
+.status {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin: 0; padding: 4px 12px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border); font-size: 0.85rem;
+}
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.status[data-kind="ready"]::before { background: var(--accent); }
+.status[data-kind="error"] { color: var(--danger); border-color: currentColor; }
+.status[data-kind="error"]::before { background: var(--danger); }
+
+.panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.load { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; margin: 28px 0 20px; padding: 16px; }
+.drop {
+    flex: 1 1 320px; display: flex; flex-direction: column; justify-content: center; gap: 2px;
+    padding: 18px 20px; border: 1.5px dashed var(--border); border-radius: 8px; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.drop:hover, .drop.over, .drop:focus-within { border-color: var(--accent); background: var(--accent-soft); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop strong { font-size: 1rem; }
+.drop span { color: var(--muted); font-size: 0.85rem; }
+.examples { flex: 0 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.examples p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.examples div { display: flex; gap: 8px; flex-wrap: wrap; }
+button, .button {
+    font: inherit; font-size: 0.9rem; padding: 7px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none;
+}
+button:hover:not(:disabled), .button:hover { border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button:focus-visible, .button:focus-visible, input:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+.recording { padding: 16px; margin-bottom: 20px; }
+.recording-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.recording-head h2 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.recording-head p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.recording-head audio { height: 36px; max-width: 100%; }
+.player { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.spectrogram { position: relative; height: 240px; border-radius: 6px; overflow: hidden; background: #000004; }
+.spectrogram canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hint { margin: 8px 0 0; color: var(--muted); font-size: 0.8rem; }
+
+.summary { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+.summary p { margin: 0; font-weight: 600; }
+
+.results { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.card { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 16px; overflow: hidden; transition: border-color 0.15s; }
+.card:hover, .card:focus-within { border-color: var(--accent); }
+.card header { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+.card h3 { margin: 0; font-size: 0.95rem; line-height: 1.3; }
+.card .id { font: 0.75rem var(--mono); color: var(--muted); background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.value { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 1.7rem; font-weight: 650; font-variant-numeric: tabular-nums; min-height: 2.6rem; align-items: baseline; }
+.value small, .outputs small { font-size: 0.7rem; font-weight: 600; color: var(--muted); }
+.placeholder { color: var(--border); }
+.error { font-size: 0.85rem; font-weight: 500; color: var(--danger); }
+.outputs { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; font-size: 0.85rem; }
+.outputs:empty { display: none; }
+.outputs dt { color: var(--muted); }
+.outputs dd { margin: 0; display: flex; gap: 12px; font-variant-numeric: tabular-nums; }
+.about { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.card footer { margin-top: auto; padding-top: 6px; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 0.78rem; color: var(--muted); }
+.reference { font-family: var(--mono); font-size: 0.72rem; }
+.params summary { cursor: pointer; font-size: 0.85rem; color: var(--accent); width: fit-content; }
+.fields { display: grid; gap: 8px; margin-top: 8px; }
+.fields label { display: grid; grid-template-columns: 1fr 96px 34px; gap: 8px; align-items: center; font-size: 0.85rem; }
+.fields input {
+    font: inherit; font-variant-numeric: tabular-nums; width: 100%; padding: 4px 6px;
+    border: 1px solid var(--border); border-radius: 5px; background: var(--bg); color: var(--text);
+}
+.fields small { color: var(--muted); }
+.reset { margin-top: 8px; font-size: 0.8rem; padding: 4px 10px; }
+.card::after {
+    content: ""; position: absolute; left: 0; top: 0; height: 3px; width: calc(var(--progress, 0) * 100%);
+    background: var(--accent); opacity: 0; transition: width 0.1s;
+}
+.card.running::after { opacity: 1; }
+.card.running .value { opacity: 0.35; }
+
+footer.site { margin-top: 40px; color: var(--muted); font-size: 0.85rem; }
+footer.site p { margin: 4px 0; }
+
+@media (max-width: 600px) {
+    .wrap { padding-top: 24px; }
+    h1 { font-size: 1.5rem; }
+    .spectrogram { height: 180px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>Ecoacoustic indices in the browser</h1>
+        <p class="lede">Nine acoustic indices from <a href="https://github.com/edwbaker/vamp-ecoacoustics">vamp-ecoacoustics</a>,
+            compiled to WebAssembly and run by a Vamp host inside this page. Your audio stays on your computer.</p>
+        <p class="status" id="status" role="status">Loading the WebAssembly host&hellip;</p>
+    </header>
+
+    <main>
+        <section class="load panel" aria-label="Choose audio">
+            <label class="drop" id="drop">
+                <input type="file" id="file" accept="audio/*,.wav,.flac,.mp3" data-needs-host disabled>
+                <strong>Choose a recording</strong>
+                <span>or drop one here. WAV is read at its own sample rate; other formats are decoded by the browser.</span>
+            </label>
+            <div class="examples">
+                <p>Or try a synthetic example</p>
+                <div>
+                    <button type="button" data-example="chorus" data-needs-host disabled>Dawn chorus</button>
+                    <button type="button" data-example="roadside" data-needs-host disabled>Roadside</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="recording panel" id="recording" hidden aria-label="Recording">
+            <div class="recording-head">
+                <div>
+                    <h2 id="file-name"></h2>
+                    <p id="file-details"></p>
+                </div>
+                <div class="player">
+                    <audio id="player" controls preload="metadata"></audio>
+                    <a class="button" id="save" hidden>Save WAV</a>
+                </div>
+            </div>
+            <div class="spectrogram">
+                <canvas id="spectrogram" aria-label="Spectrogram of the recording" role="img"></canvas>
+                <canvas id="overlay" aria-hidden="true"></canvas>
+            </div>
+            <p class="hint">Point at an index to see which frequencies it uses. Spectrogram of the first channel.</p>
+        </section>
+
+        <div class="summary" id="summary" hidden>
+            <p id="summary-text" aria-live="polite"></p>
+            <button type="button" id="download" disabled>Download CSV</button>
+        </div>
+
+        <section class="results" id="results" aria-label="Indices"></section>
+    </main>
+
+    <footer class="site">
+        <p>Plugins: <a href="https://github.com/edwbaker/vamp-ecoacoustics">vamp-ecoacoustics</a> (GPL &ge; 2), validated against the
+            soundecology and seewave R packages. Host: <a href="https://github.com/edwbaker/vamp-wasm">vamp-wasm</a>, built on the Vamp plugin SDK.</p>
+        <p>Audio is passed to each plugin in blocks the way <a href="https://revamp.ebaker.me.uk">ReVAMP</a>&rsquo;s <code>runPlugin()</code> passes it in R.</p>
+    </footer>
+</div>
+
+<template id="card-template">
+    <article class="card panel" data-key="">
+        <header><h3></h3><code class="id"></code></header>
+        <div class="value"><span class="placeholder">&mdash;</span></div>
+        <dl class="outputs"></dl>
+        <p class="about"></p>
+        <footer><span class="reference"></span><span class="meta"></span></footer>
+        <details class="params">
+            <summary>Parameters</summary>
+            <div class="fields"></div>
+            <button type="button" class="reset" hidden>Reset to defaults</button>
+        </details>
+    </article>
+</template>
+
+<script type="module" src="demo.js"></script>
+</body>
+</html>

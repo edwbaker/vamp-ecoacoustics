@@ -1,5 +1,9 @@
 # Ecoacoustic Vamp Plugins
 
+[![Build](https://github.com/edwbaker/vamp-ecoacoustics/actions/workflows/build.yml/badge.svg)](https://github.com/edwbaker/vamp-ecoacoustics/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/edwbaker/vamp-ecoacoustics)](https://github.com/edwbaker/vamp-ecoacoustics/releases)
+[![License: GPL v2+](https://img.shields.io/badge/license-GPL%20v2%2B-blue)](#license)
+
 High-performance [Vamp plugins](https://vamp-plugins.org/) for ecoacoustic analysis, implementing standard acoustic indices used in bioacoustics and soundscape ecology.
 
 ## Features
@@ -56,6 +60,8 @@ make PLATFORM=macos   # or PLATFORM=linux
 make PLATFORM=wasm
 ```
 
+This builds an Emscripten side module, which a WebAssembly Vamp host loads with `dlopen()`. See [In a web browser](#in-a-web-browser) for a demo page that does this.
+
 ## Usage
 
 ### With R (ReVAMP package)
@@ -80,6 +86,19 @@ ndsi <- runPlugin(wav, "vamp-ecoacoustics:ndsi")
 aei_custom <- runPlugin(wav, "vamp-ecoacoustics:aei-acc",
                         params = list(maxFreq = 8, dbThreshold = -40))
 ```
+
+### In a web browser
+
+[`demo/`](demo/) is a web page that runs all nine indices in the browser. It loads the WebAssembly build of the plugins into the [vamp-wasm](https://github.com/edwbaker/vamp-wasm) host, which runs in a Web Worker. Recordings are analysed locally, WAV files keep their own sample rate, and blocks are passed to the plugins the way ReVAMP's `runPlugin()` passes them. Two synthetic soundscapes are built in for trying it out.
+
+Building it needs [Emscripten](https://emscripten.org) and a vamp-wasm checkout next to this repository (or set `VAMP_WASM_DIR`):
+
+```bash
+sh demo/build.sh        # or: make demo
+python -m http.server 8000 -d demo
+```
+
+Then open http://localhost:8000. The page has to be served over HTTP: browsers won't run it from `file://`.
 
 ## Plugin Parameters
 
@@ -107,16 +126,16 @@ aei_custom <- runPlugin(wav, "vamp-ecoacoustics:aei-acc",
 ### BI (bi-acc)
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `minFreq` | Minimum frequency (kHz) | 2 |
-| `maxFreq` | Maximum frequency (kHz) | 8 |
+| `minFreq` | Minimum frequency (Hz) | 2000 |
+| `maxFreq` | Maximum frequency (Hz) | 8000 |
 
 ### NDSI
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `anthroMin` | Anthrophony min frequency (kHz) | 1 |
-| `anthroMax` | Anthrophony max frequency (kHz) | 2 |
-| `bioMin` | Biophony min frequency (kHz) | 2 |
-| `bioMax` | Biophony max frequency (kHz) | 11 |
+| `anthroMin` | Anthrophony min frequency (Hz) | 1000 |
+| `anthroMax` | Anthrophony max frequency (Hz) | 2000 |
+| `bioMin` | Biophony min frequency (Hz) | 2000 |
+| `bioMax` | Biophony max frequency (Hz) | 11000 |
 
 ## Validation
 
@@ -129,6 +148,21 @@ All plugins are validated against their R reference implementations. Example res
 | AEI | 91 | < 0.02% |
 | BI | 91 | < 0.01% |
 | NDSI | 91 | < 0.01% |
+
+## Testing
+
+```bash
+make test                                  # Linux / macOS / MinGW
+cmake -S . -B build -A x64                 # Windows (MSVC)
+cmake --build build --config Release --target test_indices
+ctest --test-dir build -C Release --output-on-failure
+```
+
+`tests/test_indices.cpp` runs all nine plugins the way a Vamp host does (preferred block size, zero-padded final block, `getRemainingFeatures()`) on deterministic synthetic signals, so there are no audio fixtures. It checks:
+
+- **API**: identifiers, channel limits, output counts, parameter defaults.
+- **Known answers**: a tone in the biophony band gives NDSI ≈ +1, flat noise gives ADI ≈ ln(10) and AEI ≈ 0, a steady tone has TH ≈ 1, ACI is unchanged by overall gain, stereo equals two mono runs, `reset()` is repeatable.
+- **Baselines** (`tests/golden.inc`): recorded values that catch unintended numerical changes, including differences between platforms. These come from this code, not from R. After a deliberate change, regenerate them with `tests/test_indices --write-golden tests/golden.inc`.
 
 ## Performance
 
@@ -150,6 +184,10 @@ Typical speedups vs R implementations (varies by file):
 - Pieretti N, Farina A, Morri FD (2011). A new methodology to infer the singing activity of an avian community: the Acoustic Complexity Index (ACI). *Ecological Indicators*, 11, 868-873.
 - Villanueva-Rivera LJ, Pijanowski BC, Doucette J, Pekin B (2011). A primer of acoustic analysis for landscape ecologists. *Landscape Ecology*, 26, 1233-1246.
 - Sueur J, Aubin T, Simonis C (2008). Seewave, a free modular tool for sound analysis and synthesis. *Bioacoustics*, 18, 213-226.
+
+## Citing
+
+If you use these plugins, please cite them using the metadata in [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" button). Each GitHub release is archived on Zenodo, which gives it a citable DOI.
 
 ## License
 

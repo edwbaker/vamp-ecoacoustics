@@ -43,6 +43,17 @@ jobs:
         cmake --build build --config Release
         Copy-Item -Path "build\Release\vamp-ecoacoustics.dll" -Destination "${{ github.workspace }}\${{ matrix.artifact_name }}" -Force
 
+    - name: Test (non-Windows)
+      if: matrix.os != 'windows-latest'
+      run: make test PLATFORM=${{ matrix.platform }}
+
+    - name: Test (MSVC)
+      if: matrix.os == 'windows-latest'
+      shell: powershell
+      run: |
+        cmake --build build --config Release --target test_indices
+        ctest --test-dir build -C Release --output-on-failure
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v7
       with:

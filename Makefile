@@ -87,7 +87,7 @@ else ifeq ($(PLATFORM),wasm)
 	TARGET = $(PLUGIN_NAME).wasm
 	# Emscripten specific flags for wasm plugin as side module
 	CXXFLAGS = -std=c++11 -O3 -fPIC $(THREAD_FLAG) -I. -Isrc -Iext -DPOCKETFFT_NO_MULTITHREADING=1
-	LDFLAGS = -s SIDE_MODULE=1 -O3 -s EXPORT_ALL=1 -s LINKABLE=1 --no-entry
+	LDFLAGS = -s SIDE_MODULE=1 -O3 -s EXPORT_ALL=1 --no-entry
 else
 	# Linux
 	TARGET = $(PLUGIN_NAME).so
@@ -149,4 +149,18 @@ else ifeq ($(PLATFORM),wasm)
 	@echo "Use $(TARGET) in a WebAssembly-enabled Vamp host or web application"
 endif
 
-.PHONY: all clean install
+# Browser demo: the wasm plugins plus the vamp-wasm host that loads them, built into demo/
+demo:
+	sh demo/build.sh
+
+# Tests: builds tests/test_indices (plugin classes + test runner, no Vamp host) and runs it.
+# On Windows/MSVC use CMake instead: cmake --build build --target test_indices && ctest -C Release
+TEST_SOURCES = $(filter-out src/plugins.cpp src/PluginAdapter.cpp,$(SOURCES))
+
+tests/test_indices: tests/test_indices.cpp tests/golden.inc $(TEST_SOURCES)
+	$(CXX) $(CXXFLAGS) -Itests -o $@ tests/test_indices.cpp $(TEST_SOURCES)
+
+test: tests/test_indices
+	./tests/test_indices
+
+.PHONY: all clean install demo test

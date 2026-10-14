@@ -6,6 +6,8 @@
 *.dll
 *.wasm
 *.js
+!demo/*.js
+demo/vamp-host.js
 *.def
 !src/vamp-ecoacoustics.def
 *.exp
@@ -13,3 +15,5 @@
 *.a
 *.py
 build/
+tests/test_indices
+tests/test_indices.exe
