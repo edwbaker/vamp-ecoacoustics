@@ -227,6 +227,16 @@ static Outputs runN(double sr, const std::vector<Signal> &chans, const Params &p
     return run(p.get(), chans, params);
 }
 
+// True if initialise() accepts this frequency range (minFreq above maxFreq must be refused)
+template <class P>
+static bool acceptsRange(double sr, double minHz, double maxHz)
+{
+    std::unique_ptr<P> p(new P(static_cast<float>(sr)));
+    p->setParameter("minFreq", static_cast<float>(minHz));
+    p->setParameter("maxFreq", static_cast<float>(maxHz));
+    return p->initialise(1, p->getPreferredStepSize(), p->getPreferredBlockSize());
+}
+
 // ------------------------------------------------------------------- tests
 
 static const double SR = 20000.0;       // block = sr/10 = 2000 -> 10 Hz bins for ADI/AEI
@@ -372,6 +382,26 @@ int main(int argc, char **argv)
         offBand["minFreq"] = 7000.0f; offBand["maxFreq"] = 9000.0f;
         check(value<ACIaccPlugin>(SR, S.pulsed5k, offBand) < 0.5 * aPulses,
               "aci-acc: 7000-9000 Hz of a 5 kHz signal has far less ACI than the full range");
+
+        // minFreq above maxFreq is refused at initialise(); the default (no limits) is accepted
+        check(!acceptsRange<ACIPlugin>(SR, 8000, 2000), "aci: minFreq above maxFreq is refused at initialise()");
+        check(!acceptsRange<ACIaccPlugin>(SR, 8000, 2000), "aci-acc: minFreq above maxFreq is refused at initialise()");
+        check(acceptsRange<ACIaccPlugin>(SR, 0, 0), "aci-acc: default range is accepted");
+
+        // a range with no bins gives no value rather than a wrapped bin count. 5 Hz and 7 Hz both fall in
+        // bin 0 at ~39 Hz resolution, and ACI skips bin 0
+        Params collapsed;
+        collapsed["minFreq"] = 5.0f; collapsed["maxFreq"] = 7.0f;
+        check(runN<ACIPlugin>(SR, std::vector<Signal>(1, S.pulsed5k), collapsed)[0].empty(),
+              "aci: a range with no bins gives no value");
+
+        // minFreq above Nyquist is outside the descriptor range, so only the bin guard stops it
+        Params aboveNyquist;
+        aboveNyquist["minFreq"] = 15000.0f;
+        check(runN<ACIPlugin>(SR, std::vector<Signal>(1, S.pulsed5k), aboveNyquist)[0].empty(),
+              "aci: minFreq above Nyquist gives no value");
+        check(runN<ACIaccPlugin>(SR, std::vector<Signal>(1, S.pulsed5k), aboveNyquist)[0].empty(),
+              "aci-acc: minFreq above Nyquist gives no value");
 
         stereoChecks<ACIaccPlugin>("aci-acc", S.pulsed5k, S.tone5k, 0, 0);
     }

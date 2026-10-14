@@ -225,6 +225,9 @@ ACIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     if (channels < getMinChannelCount() ||
         channels > getMaxChannelCount()) return false;
 
+    // Parameters are fixed from here on: refuse an inverted frequency range (minFreq above maxFreq)
+    if (m_maxFreq > 0 && m_minFreq > m_maxFreq) return false;
+
     m_channels = channels;
     m_blockSize = blockSize;
     m_stepSize = stepSize;
@@ -352,6 +355,10 @@ ACIPlugin::getRemainingFeatures()
         }
     }
     
+    // An empty range (no bins between minFreq and maxFreq, e.g. minFreq above Nyquist) has nothing to measure.
+    // Return before numActiveBins is computed, where the unsigned subtraction would wrap.
+    if (minBinIndex > maxBinIndex) return fs;
+
     // The stored spectra are magnitude squared. A frame is turned into normalized magnitude, sqrt(x) * invMax with
     // invMax from the global maximum seen while processing, as it is read below, rather than in a separate pass
     // over everything first. The all-zero frame added next (frame numFrames) is used as it is.

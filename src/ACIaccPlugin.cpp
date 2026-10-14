@@ -245,6 +245,9 @@ ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     if (channels < getMinChannelCount() ||
         channels > getMaxChannelCount()) return false;
 
+    // Parameters are fixed from here on: refuse an inverted frequency range (minFreq above maxFreq)
+    if (m_maxFreq > 0 && m_minFreq > m_maxFreq) return false;
+
     m_channels = channels;
     m_blockSize = blockSize;
     m_stepSize = stepSize;
@@ -401,6 +404,9 @@ ACIaccPlugin::getRemainingFeatures()
             }
         }
         
+        // An empty range has no bins to measure: skip this channel rather than let the count wrap
+        if (minBinIndex > maxBinIndex) continue;
+
         // Get raw pointer for faster access - data is magnitude squared
         size_t numActiveBins = maxBinIndex - minBinIndex + 1;
         
