@@ -37,6 +37,7 @@ Download from [GitHub Releases](https://github.com/edwbaker/vamp-ecoacoustics/re
 - **Windows**: `vamp-ecoacoustics.dll`
 - **macOS**: `vamp-ecoacoustics.dylib`
 - **Linux**: `vamp-ecoacoustics.so`
+- **WebAssembly**: `vamp-ecoacoustics.wasm`, also published, unchanged, to `https://cdn.audioblast.org/vamp-ecoacoustics/<version>/` for each release (for example `.../vamp-ecoacoustics/0.2.5/vamp-ecoacoustics.wasm`). Version directories are immutable. The workflow adds the files to the CDN repository's `master` branch; making them live is a manual promotion to its `release` branch.
 
 Copy to your Vamp plugins folder:
 - **Windows**: `C:\Program Files\Vamp Plugins\` or `%USERPROFILE%\Vamp Plugins\`
