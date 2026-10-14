@@ -2,6 +2,7 @@
 
 [![Build](https://github.com/edwbaker/vamp-ecoacoustics/actions/workflows/build.yml/badge.svg)](https://github.com/edwbaker/vamp-ecoacoustics/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/edwbaker/vamp-ecoacoustics)](https://github.com/edwbaker/vamp-ecoacoustics/releases)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23377684.svg)](https://doi.org/10.5281/zenodo.23377684)
 [![License: GPL v2+](https://img.shields.io/badge/license-GPL%20v2%2B-blue)](#license)
 
 High-performance [Vamp plugins](https://vamp-plugins.org/) for ecoacoustic analysis, implementing standard acoustic indices used in bioacoustics and soundscape ecology.
@@ -187,7 +188,7 @@ Typical speedups vs R implementations (varies by file):
 
 ## Citing
 
-If you use these plugins, please cite them using the metadata in [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" button). Each GitHub release is archived on Zenodo, which gives it a citable DOI.
+If you use these plugins, please cite them using the metadata in [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" button). Each GitHub release is archived on Zenodo, which gives it a citable DOI; the DOI above always resolves to the latest version.
 
 ## License
 

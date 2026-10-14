@@ -8,6 +8,7 @@ authors:
     given-names: Ed
     affiliation: "Natural History Museum"
 version: 0.2.3
+doi: 10.5281/zenodo.23377684
 date-released: 2026-10-14
 repository-code: "https://github.com/edwbaker/vamp-ecoacoustics"
 license: GPL-2.0-or-later
