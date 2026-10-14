@@ -11,9 +11,10 @@
 #define _NDSI_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
-#include "vamp-sdk/FFT.h"
 #include <vector>
 #include <string>
+
+class InPlaceRealFFT;
 
 using std::string;
 using std::vector;
@@ -55,7 +56,8 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processOneSecond(const vector<double>& samples, size_t channel);
+    void processOneSecond(const float* samples, size_t n, size_t channel);
+    void addWindowPSD(const double* timeBuf, double sumY, double sumTY);
     void calculateNDSI(size_t channel, double& ndsi, double& biophony, double& anthrophony);
 
     size_t m_channels;
@@ -70,13 +72,11 @@ protected:
     float m_bioMin;
     float m_bioMax;
 
-    Vamp::FFTReal *m_fft;
-    vector<double> m_fftOut;
+    InPlaceRealFFT *m_fft;
     vector<float> m_window;       // Hamming window
     double m_windowSumSq;
     
-    vector<double> m_timeBuf;
-    vector<double> m_detrendBuf;
+    vector<double> m_timeBuf;      // two windows of m_fftSize: the second is summed alongside the first
     vector<double> m_windowPSD;
     
     // Pre-computed detrending constants
@@ -89,7 +89,7 @@ protected:
     double m_psdNorm;
     double m_psdNyquistNorm;
     
-    vector<vector<double>> m_sampleBuffer; // Buffer to collect samples per channel
+    vector<vector<float>> m_sampleBuffer; // Buffer to collect samples per channel (as received; widened to double when used)
     vector<vector<double>> m_accumulatedPSD; // Sum of PSDs from each 1-second chunk per channel
     
     // Padding detection

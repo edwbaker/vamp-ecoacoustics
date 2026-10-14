@@ -11,6 +11,7 @@
 // Matches soundecology::acoustic_diversity
 
 #include "ADIaccPlugin.h"
+#include "RealFFT.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -26,6 +27,13 @@
 #define ADI_DEBUG 0
 #endif
 
+namespace {
+// Declared defaults, shared by the constructor and getParameterDescriptors()
+const float kDefaultMaxFreq = 10000.0f;  // Hz
+const float kDefaultDbThreshold = -50.0f; // dBFS
+const float kDefaultFreqStep = 1000.0f;   // Hz
+}
+
 ADIaccPlugin::ADIaccPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_channels(0),
@@ -33,12 +41,11 @@ ADIaccPlugin::ADIaccPlugin(float inputSampleRate) :
     m_stepSize(0),
     m_numBins(0),
     m_fft(nullptr),
-    m_batchSize(256),
     m_windowType(Hanning),
     m_minFreq(0.0f),
-    m_maxFreq(10000.0f),
-    m_dbThreshold(-50.0f),
-    m_freqStep(1000.0f)
+    m_maxFreq(kDefaultMaxFreq),
+    m_dbThreshold(kDefaultDbThreshold),
+    m_freqStep(kDefaultFreqStep)
 {
 }
 
@@ -116,7 +123,7 @@ ADIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2.0f;
-    d.defaultValue = 10000.0f;
+    d.defaultValue = kDefaultMaxFreq;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -126,7 +133,7 @@ ADIaccPlugin::getParameterDescriptors() const
     d.unit = "dB";
     d.minValue = -120.0f;
     d.maxValue = 0.0f;
-    d.defaultValue = -50.0f;
+    d.defaultValue = kDefaultDbThreshold;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -136,7 +143,7 @@ ADIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 100.0f;
     d.maxValue = 10000.0f;
-    d.defaultValue = 1000.0f;
+    d.defaultValue = kDefaultFreqStep;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -246,20 +253,16 @@ bool ADIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize
     m_frameCount_ch.assign(m_channels, 0);
     m_globalMax_ch.assign(m_channels, 0.0f);
     m_sampleCount_ch.assign(m_channels, 0);
-    m_inputBuffer_ch.resize(m_channels);
     m_spectralData_ch.resize(m_channels);
     m_bandHistograms_ch.resize(m_channels);
     
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        m_inputBuffer_ch[ch].reserve(blockSize * m_batchSize);
         m_spectralData_ch[ch].clear();
     }
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftOut.resize(blockSize + 2);
-    m_fftInput.resize(blockSize);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     m_window.resize(m_blockSize);
     double denom = static_cast<double>(m_windowType == Hamming ? m_blockSize - 1 : m_blockSize);
@@ -310,7 +313,6 @@ ADIaccPlugin::reset()
 {
     for (size_t ch = 0; ch < m_channels; ++ch) {
         m_spectralData_ch[ch].clear();
-        m_inputBuffer_ch[ch].clear();
         m_frameCount_ch[ch] = 0;
         m_globalMax_ch[ch] = 0.0f;
         m_sampleCount_ch[ch] = 0;
@@ -332,29 +334,21 @@ ADIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp
         // Track actual samples received
         m_sampleCount_ch[ch] += m_blockSize;
         
-        size_t oldSize = m_inputBuffer_ch[ch].size();
-        m_inputBuffer_ch[ch].resize(oldSize + m_blockSize);
-        double* dst = m_inputBuffer_ch[ch].data() + oldSize;
+        // Window the block straight into the FFT's own buffer and transform it at once
+        double* dst = m_fft->buffer();
         const float* src = inputBuffers[ch];
         for (size_t i = 0; i < m_blockSize; ++i) {
             dst[i] = static_cast<double>(src[i]) * win[i];
         }
         
-        // Check if we have enough frames for a batch
-        size_t currentFrames = m_inputBuffer_ch[ch].size() / m_blockSize;
-        if (currentFrames >= m_batchSize) {
-            processBatch(ch, currentFrames);
-            m_inputBuffer_ch[ch].clear();
-        }
+        processFrame(ch);
     }
     
     return fs;
 }
 
-void ADIaccPlugin::processBatch(size_t channel, size_t numFrames)
+void ADIaccPlugin::processFrame(size_t channel)
 {
-    if (numFrames == 0) return;
-
     // Initialize bands if needed (same for all channels)
     if (!m_bandsInitialized) {
         float maxFreqHz = m_maxFreq;
@@ -390,72 +384,59 @@ void ADIaccPlugin::processBatch(size_t channel, size_t numFrames)
 
     size_t blockSize = m_blockSize;
     
-    float maxFreqHz = m_maxFreq;
-    if (maxFreqHz <= 0) maxFreqHz = m_inputSampleRate / 2.0f;
-    
     float& globalMax = m_globalMax_ch[channel];
     auto& histograms = m_bandHistograms_ch[channel];
-    const double* fftOut = m_fftOut.data();
+    const double* frameData = m_fft->buffer();
 
-    for (size_t frame = 0; frame < numFrames; ++frame) {
-        const double* frameData = m_inputBuffer_ch[channel].data() + frame * blockSize;
-        
-        // Check if this frame is all zeros (zero-padded by host)
-        double frameEnergy = 0.0;
-        for (size_t i = 0; i < blockSize; ++i) {
-            frameEnergy += frameData[i] * frameData[i];
+    // Check if this frame is all zeros (zero-padded by host). The energy is a sum of non-negative terms, so it is
+    // at least as large as any one of them: once a single term reaches the threshold the frame is not a padded one,
+    // whatever the rest add up to, and the sum need not be finished. Otherwise the sum is the same as always.
+    double frameEnergy = 0.0;
+    for (size_t i = 0; i < blockSize; ++i) {
+        double term = frameData[i] * frameData[i];
+        if (term >= 1e-20) {
+            frameEnergy = term;
+            break;
         }
-        
-        // Skip zero-padded frames
-        if (frameEnergy < 1e-20) {
-            continue;
-        }
-        
-        m_fft->forward(frameData, m_fftOut.data());
-
-        // Process bins 0 to N/2-1 (excluding Nyquist) to match seewave::spectro
-        for (size_t b = 0; b < m_numBins; ++b) {
-            double real = fftOut[2 * b];
-            double imag = fftOut[2 * b + 1];
-            double magnitude = std::sqrt(real * real + imag * imag);
-            
-            if (static_cast<float>(magnitude) > globalMax) globalMax = static_cast<float>(magnitude);
-            
-            double db = -200.0;
-            if (magnitude > 1e-10) {
-                db = 20.0 * std::log10(magnitude);
-            }
-            
-            int histBin = static_cast<int>((db + 200.0) * 100.0);
-            if (histBin < 0) histBin = 0;
-            if (histBin >= 30000) histBin = 29999;
-            
-            // Use pre-computed bin-to-bands mapping instead of checking every band
-            const auto& bands = m_binToBands[b];
-            for (int band : bands) {
-                histograms[band][histBin]++;
-            }
-        }
-        
-        m_frameCount_ch[channel]++;
+        frameEnergy += term;
     }
+    
+    // Skip zero-padded frames
+    if (frameEnergy < 1e-20) {
+        return;
+    }
+    
+    m_fft->forward();
+
+    // Process bins 0 to N/2-1 (excluding Nyquist) to match seewave::spectro
+    m_fft->forBins(0, m_numBins, [&](size_t b, double real, double imag) {
+        double magnitude = std::sqrt(real * real + imag * imag);
+        
+        if (static_cast<float>(magnitude) > globalMax) globalMax = static_cast<float>(magnitude);
+        
+        double db = -200.0;
+        if (magnitude > 1e-10) {
+            db = 20.0 * std::log10(magnitude);
+        }
+        
+        int histBin = static_cast<int>((db + 200.0) * 100.0);
+        if (histBin < 0) histBin = 0;
+        if (histBin >= 30000) histBin = 29999;
+        
+        // Use pre-computed bin-to-bands mapping instead of checking every band
+        const auto& bands = m_binToBands[b];
+        for (int band : bands) {
+            histograms[band][histBin]++;
+        }
+    });
+
+    m_frameCount_ch[channel]++;
 }
 
 Vamp::Plugin::FeatureSet
 ADIaccPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
-    
-    // Process remaining frames for each channel
-    for (size_t ch = 0; ch < m_channels; ++ch) {
-        if (!m_inputBuffer_ch[ch].empty()) {
-            size_t remainingFrames = m_inputBuffer_ch[ch].size() / m_blockSize;
-            if (remainingFrames > 0) {
-                processBatch(ch, remainingFrames);
-            }
-            m_inputBuffer_ch[ch].clear();
-        }
-    }
     
     // Calculate ADI for each channel
     for (size_t ch = 0; ch < m_channels; ++ch) {

@@ -11,6 +11,7 @@
 // Matches soundecology::acoustic_complexity
 
 #include "ACIaccPlugin.h"
+#include "RealFFT.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -19,6 +20,14 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+namespace {
+// Declared defaults, shared by the constructor and getParameterDescriptors()
+const float kDefaultMinFreq = 0.0f;       // Hz; 0 = no lower limit
+const float kDefaultMaxFreq = 0.0f;       // Hz; 0 = no upper limit
+const float kDefaultClusterSize = 5.0f;   // seconds
+const int   kDefaultNbWindows = 12;
+}
+
 ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_channels(0),
@@ -26,12 +35,12 @@ ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
     m_stepSize(0),
     m_numBins(0),
     m_frameCount(0),
-    m_minFreq(0),
-    m_maxFreq(0),
+    m_minFreq(kDefaultMinFreq),
+    m_maxFreq(kDefaultMaxFreq),
     m_fft(nullptr),
     m_windowType(Hamming),
-    m_clusterSize(5.0f),
-    m_nbWindows(12),
+    m_clusterSize(kDefaultClusterSize),
+    m_nbWindows(kDefaultNbWindows),
     m_framesPerCluster(0)
 {
 }
@@ -122,7 +131,7 @@ ACIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2.0f;
-    d.defaultValue = 0;
+    d.defaultValue = kDefaultMinFreq;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -132,7 +141,7 @@ ACIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2.0f;
-    d.defaultValue = 0; // 0 means max
+    d.defaultValue = kDefaultMaxFreq;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -142,7 +151,7 @@ ACIaccPlugin::getParameterDescriptors() const
     d.unit = "s";
     d.minValue = 0.1f;
     d.maxValue = 600.0f;
-    d.defaultValue = 5.0f;
+    d.defaultValue = kDefaultClusterSize;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -152,7 +161,7 @@ ACIaccPlugin::getParameterDescriptors() const
     d.unit = "";
     d.minValue = 0;
     d.maxValue = 1000;
-    d.defaultValue = 12;
+    d.defaultValue = kDefaultNbWindows;
     d.isQuantized = true;
     d.quantizeStep = 1;
     list.push_back(d);
@@ -244,16 +253,13 @@ ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftInput.resize(blockSize);
-    m_fftOut.resize(blockSize + 2);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     // Initialize per-channel storage
-    m_spectralData_ch.resize(m_channels);
+    m_spectral_ch.resize(m_channels);
     m_totalSamplesReceived.resize(m_channels, 0);
     m_lastBlockValidSamples.resize(m_channels, 0);
     m_frameCount_ch.resize(m_channels, 0);
-    m_spectralWriteIdx_ch.resize(m_channels, 0);
     
     // Calculate frames per cluster for initial reserve
     float framesPerSecond = m_inputSampleRate / m_stepSize;
@@ -261,7 +267,7 @@ ACIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     if (m_framesPerCluster < 1) m_framesPerCluster = 1;
     
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        m_spectralData_ch[ch].reserve(4096 * m_numBins);
+        m_spectral_ch[ch].init(m_numBins);
     }
     
     // Pre-compute window (float for memory efficiency)
@@ -284,41 +290,31 @@ void
 ACIaccPlugin::reset()
 {
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        m_spectralData_ch[ch].clear();
+        m_spectral_ch[ch].clear();
         m_totalSamplesReceived[ch] = 0;
         m_lastBlockValidSamples[ch] = 0;
         m_frameCount_ch[ch] = 0;
-        m_spectralWriteIdx_ch[ch] = 0;
     }
     m_frameCount = 0;
 }
 
 void ACIaccPlugin::processFrame(size_t channel, const float* input)
 {
-    // Apply window and copy to FFT input buffer
+    // Apply window, writing the samples straight into the FFT's own buffer
     const float* win = m_window.data();
-    double* fftIn = m_fftInput.data();
+    double* fftIn = m_fft->buffer();
     for (size_t i = 0; i < m_blockSize; ++i) {
         fftIn[i] = static_cast<double>(input[i]) * win[i];
     }
-    
+
     // Perform FFT
-    m_fft->forward(fftIn, m_fftOut.data());
-    
+    m_fft->forward();
+
     // Store magnitude squared (defer sqrt to getRemainingFeatures)
-    size_t requiredSize = m_spectralWriteIdx_ch[channel] + m_numBins;
-    if (m_spectralData_ch[channel].size() < requiredSize) {
-        m_spectralData_ch[channel].resize(requiredSize);
-    }
-    
-    float* spectralPtr = m_spectralData_ch[channel].data() + m_spectralWriteIdx_ch[channel];
-    const double* fftOut = m_fftOut.data();
-    for (size_t i = 0; i < m_numBins; ++i) {
-        double real = fftOut[2 * i];
-        double imag = fftOut[2 * i + 1];
+    float* spectralPtr = m_spectral_ch[channel].appendRow();
+    m_fft->forBins(0, m_numBins, [spectralPtr](size_t i, double real, double imag) {
         spectralPtr[i] = static_cast<float>(real * real + imag * imag);
-    }
-    m_spectralWriteIdx_ch[channel] = requiredSize;
+    });
     m_frameCount_ch[channel]++;
 }
 
@@ -354,7 +350,8 @@ ACIaccPlugin::getRemainingFeatures()
     FeatureSet fs;
     
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        size_t totalFrames = m_spectralWriteIdx_ch[ch] / m_numBins;
+        const RowStore& spectral = m_spectral_ch[ch];
+        size_t totalFrames = spectral.rows();
         if (totalFrames == 0) {
             Feature f;
             f.hasTimestamp = false;
@@ -405,7 +402,6 @@ ACIaccPlugin::getRemainingFeatures()
         }
         
         // Get raw pointer for faster access - data is magnitude squared
-        const float* data = m_spectralData_ch[ch].data();
         size_t numActiveBins = maxBinIndex - minBinIndex + 1;
         
         // Process clusters - matching soundecology's exact algorithm
@@ -431,7 +427,7 @@ ACIaccPlugin::getRemainingFeatures()
             std::fill(sumD, sumD + numActiveBins, 0.0f);
             
             // First frame: compute sqrt and store for reuse
-            const float* firstFrameSq = data + minFrame * m_numBins + minBinIndex;
+            const float* firstFrameSq = spectral.row(minFrame) + minBinIndex;
             for (size_t b = 0; b < numActiveBins; ++b) {
                 float mag = std::sqrt(firstFrameSq[b]);
                 sumI[b] = mag;
@@ -440,7 +436,7 @@ ACIaccPlugin::getRemainingFeatures()
             
             // Process subsequent frames - compute sqrt once per bin per frame
             for (size_t t = minFrame + 1; t < maxFrame; ++t) {
-                const float* frameSq = data + t * m_numBins + minBinIndex;
+                const float* frameSq = spectral.row(t) + minBinIndex;
                 
                 for (size_t b = 0; b < numActiveBins; ++b) {
                     float mag = std::sqrt(frameSq[b]);
@@ -463,6 +459,9 @@ ACIaccPlugin::getRemainingFeatures()
             delete[] sumD;
             delete[] prevMag;
         }
+
+        // The spectra of this channel are not needed any more: release them now rather than with the plugin
+        m_spectral_ch[ch].clear();
 
         Feature f;
         f.hasTimestamp = false;

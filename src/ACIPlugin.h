@@ -11,9 +11,11 @@
 #define _ACI_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
-#include "vamp-sdk/FFT.h"
+#include "RowStore.h"
 #include <vector>
 #include <string>
+
+class InPlaceRealFFT;
 
 using std::string;
 using std::vector;
@@ -69,9 +71,7 @@ protected:
     float m_maxFreq;
 
     // FFT
-    Vamp::FFTReal *m_fft;
-    std::vector<double> m_fftInput;   // Reusable FFT input buffer
-    std::vector<double> m_fftOut;
+    InPlaceRealFFT *m_fft;
     std::vector<float> m_window;
 
     // Streaming ACI computation (for nbWindows=1)
@@ -80,10 +80,9 @@ protected:
     std::vector<float> m_sumAbsDiff;     // Running sum of |diff| per bin
     bool m_hasFirstFrame;
     
-    // Multi-window mode: store all spectral data
-    std::vector<float> m_spectralData;
-    size_t m_spectralWriteIdx;
-    
+    // Magnitude-squared spectra of all frames, one row per frame
+    RowStore m_spectral;
+
     enum WindowType {
         Hanning,
         Hamming

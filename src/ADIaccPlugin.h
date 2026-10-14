@@ -11,9 +11,10 @@
 #define _ADI_ACC_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
-#include "vamp-sdk/FFT.h"
 #include <vector>
 #include <string>
+
+class InPlaceRealFFT;
 
 using std::string;
 using std::vector;
@@ -55,7 +56,7 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t channel, size_t numFrames);
+    void processFrame(size_t channel);
 
     // Internal
     size_t m_channels;
@@ -69,15 +70,10 @@ protected:
     std::vector<size_t> m_sampleCount_ch; // Track actual samples received per channel
 
     // FFT
-    Vamp::FFTReal *m_fft;
-    std::vector<double> m_fftOut;
-    std::vector<double> m_fftInput; 
+    InPlaceRealFFT *m_fft;
     std::vector<float> m_window;
     std::vector<std::vector<int>> m_binToBands;  // Pre-computed bin-to-bands mapping (each bin can be in multiple bands)
 
-    // Batch processing - per channel
-    size_t m_batchSize;
-    std::vector<std::vector<double>> m_inputBuffer_ch; 
     std::vector<std::vector<float>> m_spectralData_ch;
     
     enum WindowType {

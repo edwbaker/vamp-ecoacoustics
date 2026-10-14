@@ -11,6 +11,7 @@
 // Matches seewave::ACI
 
 #include "ACIPlugin.h"
+#include "RealFFT.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -19,20 +20,26 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+namespace {
+// Declared defaults, shared by the constructor and getParameterDescriptors()
+const float kDefaultMinFreq = 0.0f;    // Hz; 0 = no lower limit
+const float kDefaultMaxFreq = 0.0f;    // Hz; 0 = no upper limit
+const int   kDefaultNbWindows = 1;
+}
+
 ACIPlugin::ACIPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
-    m_nbWindows(1),
+    m_nbWindows(kDefaultNbWindows),
     m_channels(0),
     m_blockSize(0),
     m_stepSize(0),
     m_numBins(0),
     m_frameCount(0),
     m_globalMaxSq(0.0f),
-    m_minFreq(0),
-    m_maxFreq(0),
+    m_minFreq(kDefaultMinFreq),
+    m_maxFreq(kDefaultMaxFreq),
     m_fft(nullptr),
     m_hasFirstFrame(false),
-    m_spectralWriteIdx(0),
     m_windowType(Hamming)
 {
 }
@@ -123,7 +130,7 @@ ACIPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2.0f;
-    d.defaultValue = 0;
+    d.defaultValue = kDefaultMinFreq;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -133,7 +140,7 @@ ACIPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2.0f;
-    d.defaultValue = 0;
+    d.defaultValue = kDefaultMaxFreq;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -143,7 +150,7 @@ ACIPlugin::getParameterDescriptors() const
     d.unit = "";
     d.minValue = 1;
     d.maxValue = 100;
-    d.defaultValue = 1;
+    d.defaultValue = kDefaultNbWindows;
     d.isQuantized = true;
     d.quantizeStep = 1;
     list.push_back(d);
@@ -225,13 +232,11 @@ ACIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_globalMaxSq = 0.0f;
     m_numBins = blockSize / 2 + 1;
     m_hasFirstFrame = false;
-    m_spectralWriteIdx = 0;
+    m_spectral.init(m_numBins);
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftInput.resize(blockSize);
-    m_fftOut.resize(blockSize + 2);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     // Pre-compute window
     m_window.resize(m_blockSize);
@@ -250,11 +255,6 @@ ACIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_prevFrame.resize(m_numBins, 0.0f);
     m_sumIntensity.resize(m_numBins, 0.0f);
     m_sumAbsDiff.resize(m_numBins, 0.0f);
-    
-    // Multi-window mode: reserve spectral data storage
-    if (m_nbWindows > 1) {
-        m_spectralData.reserve(4096 * m_numBins);
-    }
 
     return true;
 }
@@ -262,10 +262,9 @@ ACIPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 void
 ACIPlugin::reset()
 {
-    m_spectralData.clear();
+    m_spectral.clear();
     m_frameCount = 0;
     m_globalMaxSq = 0.0f;
-    m_spectralWriteIdx = 0;
     m_hasFirstFrame = false;
     std::fill(m_prevFrame.begin(), m_prevFrame.end(), 0.0f);
     std::fill(m_sumIntensity.begin(), m_sumIntensity.end(), 0.0f);
@@ -274,31 +273,26 @@ ACIPlugin::reset()
 
 void ACIPlugin::processFrame(const float* input)
 {
-    // Apply window and copy to FFT input buffer
+    // Apply window, writing the samples straight into the FFT's own buffer
+    double* fftIn = m_fft->buffer();
     for (size_t i = 0; i < m_blockSize; ++i) {
-        m_fftInput[i] = static_cast<double>(input[i] * m_window[i]);
+        fftIn[i] = static_cast<double>(input[i] * m_window[i]);
     }
-    
+
     // Perform FFT
-    m_fft->forward(m_fftInput.data(), m_fftOut.data());
-    
+    m_fft->forward();
+
     size_t halfBlock = m_blockSize / 2;
-    
+
     // Store spectral data (magnitude squared)
-    size_t requiredSize = m_spectralWriteIdx + m_numBins;
-    if (m_spectralData.size() < requiredSize) {
-        m_spectralData.resize(requiredSize);
-    }
-    
-    float* spectralPtr = m_spectralData.data() + m_spectralWriteIdx;
-    for (size_t i = 0; i <= halfBlock; ++i) {
-        double real = m_fftOut[2 * i];
-        double imag = m_fftOut[2 * i + 1];
+    float* spectralPtr = m_spectral.appendRow();
+    float globalMaxSq = m_globalMaxSq;
+    m_fft->forBins(0, halfBlock + 1, [spectralPtr, &globalMaxSq](size_t i, double real, double imag) {
         float magSq = static_cast<float>(real * real + imag * imag);
         spectralPtr[i] = magSq;
-        if (magSq > m_globalMaxSq) m_globalMaxSq = magSq;
-    }
-    m_spectralWriteIdx = requiredSize;
+        if (magSq > globalMaxSq) globalMaxSq = magSq;
+    });
+    m_globalMaxSq = globalMaxSq;
     m_frameCount++;
 }
 
@@ -318,10 +312,10 @@ ACIPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
     
-    if (m_spectralWriteIdx == 0) return fs;
+    if (m_spectral.rows() == 0) return fs;
 
     // Calculate number of frames currently stored
-    size_t numFrames = m_spectralWriteIdx / m_numBins;
+    size_t numFrames = m_spectral.rows();
     
     // Handle padding frames
     size_t paddingFrames = 0;
@@ -358,32 +352,35 @@ ACIPlugin::getRemainingFeatures()
         }
     }
     
-    float* data = m_spectralData.data();
-    size_t totalElements = numFrames * m_numBins;
-
-    // Convert magnitude squared to normalized magnitude in single pass
-    // Using pre-computed global max from processing
-    if (m_globalMaxSq > 0) {
-        float invMax = 1.0f / std::sqrt(m_globalMaxSq);
-        for (size_t i = 0; i < totalElements; ++i) {
-            data[i] = std::sqrt(data[i]) * invMax;
-        }
-    }
+    // The stored spectra are magnitude squared. A frame is turned into normalized magnitude, sqrt(x) * invMax with
+    // invMax from the global maximum seen while processing, as it is read below, rather than in a separate pass
+    // over everything first. The all-zero frame added next (frame numFrames) is used as it is.
+    const bool normalize = m_globalMaxSq > 0;
+    const float invMax = normalize ? 1.0f / std::sqrt(m_globalMaxSq) : 0.0f;
+    const size_t normalizedFrames = numFrames;
 
     if (m_stepSize < m_blockSize) {
-        size_t insertPos = numFrames * m_numBins;
-        if (m_spectralData.size() < insertPos + m_numBins) {
-            m_spectralData.resize(insertPos + m_numBins, 0.0f);
-        } else {
-            std::fill(m_spectralData.begin() + insertPos, 
-                      m_spectralData.begin() + insertPos + m_numBins, 0.0f);
-        }
+        // One extra, all-zero frame follows the last one used (it takes the place of the first padding frame)
+        float* zeroFrame = (numFrames < m_spectral.rows()) ? m_spectral.row(numFrames) : m_spectral.appendRow();
+        std::fill(zeroFrame, zeroFrame + m_numBins, 0.0f);
         numFrames++;
-        data = m_spectralData.data();
     }
     
     float totalACI = 0.0f;
     size_t numActiveBins = maxBinIndex - minBinIndex + 1;
+
+    auto loadFrame = [&](size_t t, float* out) {
+        const float* in = m_spectral.row(t) + minBinIndex;
+        if (normalize && t < normalizedFrames) {
+            for (size_t b = 0; b < numActiveBins; ++b) {
+                out[b] = std::sqrt(in[b]) * invMax;
+            }
+        } else {
+            for (size_t b = 0; b < numActiveBins; ++b) {
+                out[b] = in[b];
+            }
+        }
+    };
     
     for (int j = 0; j < m_nbWindows; ++j) {
         size_t l = numFrames;
@@ -393,26 +390,28 @@ ACIPlugin::getRemainingFeatures()
         if (startFrame >= endFrame || (endFrame - startFrame) < 2) continue;
 
         // Stack allocation for accumulators
-        float stackSumInt[512], stackSumDiff[512];
+        float stackSumInt[512], stackSumDiff[512], stackFrameA[512], stackFrameB[512];
         float* sumIntensity = (numActiveBins <= 512) ? stackSumInt : new float[numActiveBins];
         float* sumAbsDiff = (numActiveBins <= 512) ? stackSumDiff : new float[numActiveBins];
+        float* currentFrame = (numActiveBins <= 512) ? stackFrameA : new float[numActiveBins];
+        float* nextFrame = (numActiveBins <= 512) ? stackFrameB : new float[numActiveBins];
         
         std::fill(sumIntensity, sumIntensity + numActiveBins, 0.0f);
         std::fill(sumAbsDiff, sumAbsDiff + numActiveBins, 0.0f);
         
-        const float* firstFrame = data + startFrame * m_numBins + minBinIndex;
+        loadFrame(startFrame, currentFrame);
         for (size_t b = 0; b < numActiveBins; ++b) {
-            sumIntensity[b] = firstFrame[b];
+            sumIntensity[b] = currentFrame[b];
         }
-        
+
         for (size_t t = startFrame; t < endFrame - 1; ++t) {
-            const float* currentFrame = data + t * m_numBins + minBinIndex;
-            const float* nextFrame = data + (t + 1) * m_numBins + minBinIndex;
+            loadFrame(t + 1, nextFrame);
             
             for (size_t b = 0; b < numActiveBins; ++b) {
                 sumIntensity[b] += nextFrame[b];
                 sumAbsDiff[b] += std::abs(nextFrame[b] - currentFrame[b]);
             }
+            std::swap(currentFrame, nextFrame);
         }
         
         float windowAci = 0.0f;
@@ -427,8 +426,14 @@ ACIPlugin::getRemainingFeatures()
         if (numActiveBins > 512) {
             delete[] sumIntensity;
             delete[] sumAbsDiff;
+            delete[] currentFrame;
+            delete[] nextFrame;
         }
     }
+    
+    // The spectra are not needed any more: release them now rather than with the plugin (other plugins run
+    // together with this one may still have a large FFT to do)
+    m_spectral.clear();
     
     Feature f;
     f.hasTimestamp = false;

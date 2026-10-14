@@ -11,6 +11,8 @@
 // Matches soundecology::acoustic_evenness
 
 #include "AEIaccPlugin.h"
+#include "RealFFT.h"
+#include "DbAbove.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -23,6 +25,13 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+namespace {
+// Declared defaults, shared by the constructor and getParameterDescriptors()
+const float kDefaultMaxFreq = 10000.0f;  // Hz
+const float kDefaultDbThreshold = -50.0f; // dBFS
+const float kDefaultFreqStep = 1000.0f;   // Hz
+}
+
 AEIaccPlugin::AEIaccPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_channels(0),
@@ -30,12 +39,11 @@ AEIaccPlugin::AEIaccPlugin(float inputSampleRate) :
     m_stepSize(0),
     m_numBins(0),
     m_fft(nullptr),
-    m_batchSize(256),
     m_windowType(Hanning),
     m_minFreq(0.0f),
-    m_maxFreq(10000.0f),
-    m_dbThreshold(-50.0f),
-    m_freqStep(1000.0f)
+    m_maxFreq(kDefaultMaxFreq),
+    m_dbThreshold(kDefaultDbThreshold),
+    m_freqStep(kDefaultFreqStep)
 {
 }
 
@@ -113,7 +121,7 @@ AEIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2.0f;
-    d.defaultValue = 10000.0f;
+    d.defaultValue = kDefaultMaxFreq;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -123,7 +131,7 @@ AEIaccPlugin::getParameterDescriptors() const
     d.unit = "dB";
     d.minValue = -120.0f;
     d.maxValue = 0.0f;
-    d.defaultValue = -50.0f;
+    d.defaultValue = kDefaultDbThreshold;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -133,7 +141,7 @@ AEIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 100.0f;
     d.maxValue = 10000.0f;
-    d.defaultValue = 1000.0f;
+    d.defaultValue = kDefaultFreqStep;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -243,20 +251,19 @@ AEIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     // Initialize per-channel vectors
     m_frameCount_ch.assign(m_channels, 0);
     m_globalMax_ch.assign(m_channels, 0.0f);
-    m_inputBuffer_ch.resize(m_channels);
+    m_magnitude_ch.resize(m_channels);
     m_spectralData_ch.resize(m_channels);
     m_bandAboveThresholdCount_ch.resize(m_channels);
     m_bandTotalCount_ch.resize(m_channels);
     
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        m_inputBuffer_ch[ch].reserve(blockSize * m_batchSize);
+        m_magnitude_ch[ch].init(m_numBins);
         m_spectralData_ch[ch].clear();
     }
 
     // Initialize FFT
     if (m_fft) delete m_fft;
-    m_fft = new Vamp::FFTReal(static_cast<unsigned int>(blockSize));
-    m_fftOut.resize(blockSize + 2);
+    m_fft = new InPlaceRealFFT(blockSize);
     
     // Pre-compute window
     m_window.resize(m_blockSize);
@@ -277,7 +284,7 @@ AEIaccPlugin::reset()
 {
     for (size_t ch = 0; ch < m_channels; ++ch) {
         m_spectralData_ch[ch].clear();
-        m_inputBuffer_ch[ch].clear();
+        m_magnitude_ch[ch].clear();
         m_frameCount_ch[ch] = 0;
         m_globalMax_ch[ch] = 0.0f;
         m_bandAboveThresholdCount_ch[ch].clear();
@@ -294,13 +301,10 @@ AEIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp
     
     // Process each channel independently
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        // Apply window and append to input buffer for this channel
-        for (size_t i = 0; i < m_blockSize; ++i) {
-            m_inputBuffer_ch[ch].push_back(inputBuffers[ch][i] * m_window[i]);
-        }
+        processBlock(ch, inputBuffers[ch]);
     }
     
-    // Just accumulate all data - all processing happens in getRemainingFeatures()
+    // The counts that need the global maximum are made in getRemainingFeatures()
     return fs;
 }
 
@@ -317,66 +321,71 @@ static int round_r(double x) {
     return static_cast<int>(rounded);
 }
 
-void AEIaccPlugin::processBatch(size_t channel, size_t numFrames)
+// Set up the bands (same for all channels); done once, when the results are first needed
+void AEIaccPlugin::initBands()
 {
-    if (numFrames == 0) return;
+    if (m_bandsInitialized) return;
 
-    // Initialize bands if needed (same for all channels)
-    if (!m_bandsInitialized) {
-        float maxFreqHz = m_maxFreq;
-        if (maxFreqHz <= 0) maxFreqHz = m_inputSampleRate / 2.0f;
-        
-        int numBands = static_cast<int>(std::ceil(maxFreqHz / m_freqStep));
-        
-        // Initialize per-channel band counters
-        for (size_t ch = 0; ch < m_channels; ++ch) {
-            m_bandAboveThresholdCount_ch[ch].assign(numBands, 0);
-            m_bandTotalCount_ch[ch].assign(numBands, 0);
-        }
-        
-        m_bandStartBins.assign(numBands, -1);
-        m_bandEndBins.assign(numBands, -1);
-        
-        // Calculate band boundaries matching soundecology logic
-        for (int i = 0; i < numBands; ++i) {
-            float minFreq = i * m_freqStep;
-            float maxFreq = (i + 1) * m_freqStep;
-            
-            int miny = round_r(minFreq / 10.0);
-            int maxy = round_r(maxFreq / 10.0);
-            
-            int startBin = (miny <= 1) ? 0 : miny - 1;
-            int endBin = maxy;
-            
-            if (startBin < 0) startBin = 0;
-            if (endBin > static_cast<int>(m_numBins)) endBin = static_cast<int>(m_numBins);
-            
-            if (startBin < endBin) {
-                m_bandStartBins[i] = startBin;
-                m_bandEndBins[i] = endBin;
-            }
-        }
-        m_bandsInitialized = true;
+    float maxFreqHz = m_maxFreq;
+    if (maxFreqHz <= 0) maxFreqHz = m_inputSampleRate / 2.0f;
+    
+    int numBands = static_cast<int>(std::ceil(maxFreqHz / m_freqStep));
+    
+    // Initialize per-channel band counters
+    for (size_t ch = 0; ch < m_channels; ++ch) {
+        m_bandAboveThresholdCount_ch[ch].assign(numBands, 0);
+        m_bandTotalCount_ch[ch].assign(numBands, 0);
     }
-
-    size_t blockSize = m_blockSize;
-
-    // First pass: Find global max only
-    for (size_t frame = 0; frame < numFrames; ++frame) {
-        double* frameData = &m_inputBuffer_ch[channel][frame * blockSize];
-        m_fft->forward(frameData, m_fftOut.data());
+    
+    m_bandStartBins.assign(numBands, -1);
+    m_bandEndBins.assign(numBands, -1);
+    
+    // Calculate band boundaries matching soundecology logic
+    for (int i = 0; i < numBands; ++i) {
+        float minFreq = i * m_freqStep;
+        float maxFreq = (i + 1) * m_freqStep;
         
-        // Calculate Global Max over ALL bins (0 to Nyquist)
-        for (size_t b = 0; b < m_numBins; ++b) {
-            double real = m_fftOut[2 * b];
-            double imag = m_fftOut[2 * b + 1];
-            double magnitude = std::sqrt(real * real + imag * imag);
-            magnitude = magnitude / m_blockSize * 2.0;
-            if (static_cast<float>(magnitude) > m_globalMax_ch[channel]) m_globalMax_ch[channel] = static_cast<float>(magnitude);
+        int miny = round_r(minFreq / 10.0);
+        int maxy = round_r(maxFreq / 10.0);
+        
+        int startBin = (miny <= 1) ? 0 : miny - 1;
+        int endBin = maxy;
+        
+        if (startBin < 0) startBin = 0;
+        if (endBin > static_cast<int>(m_numBins)) endBin = static_cast<int>(m_numBins);
+        
+        if (startBin < endBin) {
+            m_bandStartBins[i] = startBin;
+            m_bandEndBins[i] = endBin;
         }
-        
-        m_frameCount_ch[channel]++;
     }
+    m_bandsInitialized = true;
+}
+
+// Transform one block of one channel and keep its scaled magnitudes. This is what both passes over the frames
+// used to compute (the first only for the global maximum, the second again for the threshold counts); the
+// values and the order in which the maximum is updated are the same, the FFT is done once.
+void AEIaccPlugin::processBlock(size_t channel, const float* input)
+{
+    const size_t blockSize = m_blockSize;
+    double* frameData = m_fft->buffer();
+    for (size_t i = 0; i < blockSize; ++i) {
+        frameData[i] = input[i] * m_window[i];
+    }
+    m_fft->forward();
+
+    double* magnitudes = m_magnitude_ch[channel].appendRow();
+    float& globalMax = m_globalMax_ch[channel];
+    const size_t windowLength = m_blockSize;
+    m_fft->forBins(0, m_numBins, [magnitudes, &globalMax, windowLength](size_t b, double real, double imag) {
+        double magnitude = std::sqrt(real * real + imag * imag);
+        // Apply R's scaling: divide by window length, multiply by 2
+        magnitude = magnitude / windowLength * 2.0;
+        if (static_cast<float>(magnitude) > globalMax) globalMax = static_cast<float>(magnitude);
+        magnitudes[b] = magnitude;
+    });
+    
+    m_frameCount_ch[channel]++;
 }
 
 Vamp::Plugin::FeatureSet
@@ -384,16 +393,7 @@ AEIaccPlugin::getRemainingFeatures()
 {
     FeatureSet fs;
     
-    // First pass: process ALL input to find global max for each channel
-    for (size_t ch = 0; ch < m_channels; ++ch) {
-        if (!m_inputBuffer_ch[ch].empty()) {
-            size_t allFrames = m_inputBuffer_ch[ch].size() / m_blockSize;
-            if (allFrames > 0) {
-                processBatch(ch, allFrames);
-            }
-        }
-    }
-    
+    // The global max for each channel is known: every block has been transformed
     // Calculate AEI for each channel
     for (size_t ch = 0; ch < m_channels; ++ch) {
         if (m_frameCount_ch[ch] == 0) {
@@ -405,6 +405,8 @@ AEIaccPlugin::getRemainingFeatures()
             continue;
         }
 
+        initBands();
+
         // Calculate global max dB and threshold for this channel
         double globalMaxDB = -200.0;
         if (m_globalMax_ch[ch] > 1e-10) {
@@ -413,43 +415,36 @@ AEIaccPlugin::getRemainingFeatures()
         
         double thresholdDB = globalMaxDB + m_dbThreshold;
         
-        // Second pass: count values above threshold for each band
-        size_t numFrames = m_inputBuffer_ch[ch].size() / m_blockSize;
-        size_t blockSize = m_blockSize;
+        // Count values above threshold for each band. A cell is above the threshold when
+        // 20 * log10(magnitude) > thresholdDB (-200 dB for magnitudes up to 1e-10); DbAbove gives that answer and
+        // calls log10 only for magnitudes close to the threshold (see DbAbove.h).
+        size_t numFrames = m_magnitude_ch[ch].rows();
         size_t numBands = m_bandAboveThresholdCount_ch[ch].size();
-        
+        const DbAbove isAbove(thresholdDB);
+
         for (size_t frame = 0; frame < numFrames; ++frame) {
-            double* frameData = &m_inputBuffer_ch[ch][frame * blockSize];
-            m_fft->forward(frameData, m_fftOut.data());
-            
+            const double* magnitudes = m_magnitude_ch[ch].row(frame);
+
             for (size_t band = 0; band < numBands; ++band) {
                 int start = m_bandStartBins[band];
                 int end = m_bandEndBins[band];
-                
+
                 if (start != -1 && end != -1) {
+                    long above = 0;
                     for (int b = start; b < end; ++b) {
-                        double real = m_fftOut[2 * b];
-                        double imag = m_fftOut[2 * b + 1];
-                        double magnitude = std::sqrt(real * real + imag * imag);
-                        // Apply R's scaling: divide by window length, multiply by 2
-                        magnitude = magnitude / m_blockSize * 2.0;
-                        
-                        double db = -200.0;
-                        if (magnitude > 1e-10) {
-                            db = 20.0 * std::log10(magnitude);
-                        }
-                        
-                        // Count total cells and cells above threshold
-                        m_bandTotalCount_ch[ch][band]++;
-                        if (db > thresholdDB) {
-                            m_bandAboveThresholdCount_ch[ch][band]++;
+                        if (isAbove(magnitudes[b])) {
+                            ++above;
                         }
                     }
+
+                    // Count total cells and cells above threshold
+                    m_bandTotalCount_ch[ch][band] += end - start;
+                    m_bandAboveThresholdCount_ch[ch][band] += above;
                 }
             }
         }
-        
-        m_inputBuffer_ch[ch].clear();
+
+        m_magnitude_ch[ch].clear();
         
         // Calculate band proportions (cells above threshold / total cells)
         std::vector<double> bandCounts(numBands, 0.0);

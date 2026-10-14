@@ -11,9 +11,10 @@
 #define _BI_ACC_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
-#include "vamp-sdk/FFT.h"
 #include <vector>
 #include <string>
+
+class InPlaceRealFFT;
 
 using std::string;
 using std::vector;
@@ -55,7 +56,7 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t channel, size_t numFrames);
+    void processFrame(size_t channel);
 
     // Internal
     size_t m_channels;
@@ -68,13 +69,9 @@ protected:
     std::vector<float> m_globalMax_ch; // Track global maximum magnitude per channel
 
     // FFT
-    Vamp::FFTReal *m_fft;
-    std::vector<double> m_fftOut;
+    InPlaceRealFFT *m_fft;
     std::vector<float> m_window;
 
-    // Batch processing - per channel
-    size_t m_batchSize;
-    std::vector<std::vector<double>> m_inputBuffer_ch; 
     std::vector<std::vector<float>> m_spectralData_ch;
     
     enum WindowType {

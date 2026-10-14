@@ -11,9 +11,11 @@
 #define _AEI_ACC_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
-#include "vamp-sdk/FFT.h"
+#include "RowStore.h"
 #include <vector>
 #include <string>
+
+class InPlaceRealFFT;
 
 using std::string;
 using std::vector;
@@ -55,7 +57,8 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processBatch(size_t channel, size_t numFrames);
+    void initBands();
+    void processBlock(size_t channel, const float* input);
 
     // Internal
     size_t m_channels;
@@ -68,13 +71,13 @@ protected:
     std::vector<float> m_globalMax_ch;
 
     // FFT
-    Vamp::FFTReal *m_fft;
-    std::vector<double> m_fftOut;
+    InPlaceRealFFT *m_fft;
     std::vector<double> m_window;
 
     // Batch processing - per channel
-    size_t m_batchSize;
-    std::vector<std::vector<double>> m_inputBuffer_ch; 
+    // Every block is transformed as it arrives; its scaled magnitudes (one row of m_numBins doubles per block)
+    // are kept for the threshold counts in getRemainingFeatures().
+    std::vector<RowStoreD> m_magnitude_ch;
     std::vector<std::vector<float>> m_spectralData_ch;
     
     enum WindowType {
