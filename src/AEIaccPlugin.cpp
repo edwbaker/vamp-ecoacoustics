@@ -25,6 +25,13 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+namespace {
+// Declared defaults, shared by the constructor and getParameterDescriptors()
+const float kDefaultMaxFreqKHz = 10.0f;   // kHz (held internally in Hz)
+const float kDefaultDbThreshold = -50.0f; // dBFS
+const float kDefaultFreqStep = 1000.0f;   // Hz
+}
+
 AEIaccPlugin::AEIaccPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_channels(0),
@@ -34,9 +41,9 @@ AEIaccPlugin::AEIaccPlugin(float inputSampleRate) :
     m_fft(nullptr),
     m_windowType(Hanning),
     m_minFreq(0.0f),
-    m_maxFreq(10000.0f),
-    m_dbThreshold(-50.0f),
-    m_freqStep(1000.0f)
+    m_maxFreq(kDefaultMaxFreqKHz * 1000.0f),
+    m_dbThreshold(kDefaultDbThreshold),
+    m_freqStep(kDefaultFreqStep)
 {
 }
 
@@ -114,7 +121,7 @@ AEIaccPlugin::getParameterDescriptors() const
     d.unit = "kHz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2000.0f;
-    d.defaultValue = 10.0f;
+    d.defaultValue = kDefaultMaxFreqKHz;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -124,7 +131,7 @@ AEIaccPlugin::getParameterDescriptors() const
     d.unit = "dB";
     d.minValue = -120.0f;
     d.maxValue = 0.0f;
-    d.defaultValue = -50.0f;
+    d.defaultValue = kDefaultDbThreshold;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -134,7 +141,7 @@ AEIaccPlugin::getParameterDescriptors() const
     d.unit = "Hz";
     d.minValue = 100.0f;
     d.maxValue = 10000.0f;
-    d.defaultValue = 1000.0f;
+    d.defaultValue = kDefaultFreqStep;
     d.isQuantized = false;
     list.push_back(d);
 

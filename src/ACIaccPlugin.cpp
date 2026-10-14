@@ -20,6 +20,14 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+namespace {
+// Declared defaults, shared by the constructor and getParameterDescriptors()
+const float kDefaultMinFreq = 0.0f;       // kHz; 0 = no lower limit
+const float kDefaultMaxFreq = 0.0f;       // kHz; 0 = no upper limit
+const float kDefaultClusterSize = 5.0f;   // seconds
+const int   kDefaultNbWindows = 12;
+}
+
 ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
     Plugin(inputSampleRate),
     m_channels(0),
@@ -27,12 +35,12 @@ ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
     m_stepSize(0),
     m_numBins(0),
     m_frameCount(0),
-    m_minFreq(0),
-    m_maxFreq(0),
+    m_minFreq(kDefaultMinFreq),
+    m_maxFreq(kDefaultMaxFreq),
     m_fft(nullptr),
     m_windowType(Hamming),
-    m_clusterSize(5.0f),
-    m_nbWindows(12),
+    m_clusterSize(kDefaultClusterSize),
+    m_nbWindows(kDefaultNbWindows),
     m_framesPerCluster(0)
 {
 }
@@ -119,21 +127,21 @@ ACIaccPlugin::getParameterDescriptors() const
     ParameterDescriptor d;
     d.identifier = "minFreq";
     d.name = "Minimum Frequency";
-    d.description = "Minimum frequency (kHz) to include in calculation";
+    d.description = "Minimum frequency (kHz) to include in calculation (0 = no lower limit)";
     d.unit = "kHz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2000.0f;
-    d.defaultValue = 0;
+    d.defaultValue = kDefaultMinFreq;
     d.isQuantized = false;
     list.push_back(d);
 
     d.identifier = "maxFreq";
     d.name = "Maximum Frequency";
-    d.description = "Maximum frequency (kHz) to include in calculation";
+    d.description = "Maximum frequency (kHz) to include in calculation (0 = no upper limit, i.e. up to the Nyquist frequency)";
     d.unit = "kHz";
     d.minValue = 0;
     d.maxValue = m_inputSampleRate / 2000.0f;
-    d.defaultValue = 0; // 0 means max
+    d.defaultValue = kDefaultMaxFreq;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -143,7 +151,7 @@ ACIaccPlugin::getParameterDescriptors() const
     d.unit = "s";
     d.minValue = 0.1f;
     d.maxValue = 600.0f;
-    d.defaultValue = 5.0f;
+    d.defaultValue = kDefaultClusterSize;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -153,7 +161,7 @@ ACIaccPlugin::getParameterDescriptors() const
     d.unit = "";
     d.minValue = 0;
     d.maxValue = 1000;
-    d.defaultValue = 12;
+    d.defaultValue = kDefaultNbWindows;
     d.isQuantized = true;
     d.quantizeStep = 1;
     list.push_back(d);
