@@ -84,7 +84,7 @@ ndsi <- runPlugin(wav, "vamp-ecoacoustics:ndsi")
 
 # With custom parameters
 aei_custom <- runPlugin(wav, "vamp-ecoacoustics:aei-acc",
-                        params = list(maxFreq = 8, dbThreshold = -40))
+                        params = list(maxFreq = 8000, dbThreshold = -40))
 ```
 
 ### In a web browser
@@ -105,21 +105,21 @@ Then open http://localhost:8000. The page has to be served over HTTP: browsers w
 ### ACI (aci, aci-acc)
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `minFreq` | Minimum frequency (kHz) | 0 |
-| `maxFreq` | Maximum frequency (kHz) | Nyquist |
+| `minFreq` | Minimum frequency (Hz) | 0 |
+| `maxFreq` | Maximum frequency (Hz) | Nyquist |
 | `nbWindows` | Number of time windows to divide the file into (aci-acc). Set to `0` to auto-select windows so each is ≈ 5 s | 12 |
 
 ### ADI (adi-acc)
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `maxFreq` | Maximum frequency (kHz) | 10 |
+| `maxFreq` | Maximum frequency (Hz) | 10000 |
 | `dbThreshold` | Threshold in dB (relative to max) | -50 |
 | `freqStep` | Frequency band width (Hz) | 1000 |
 
 ### AEI (aei-acc)
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `maxFreq` | Maximum frequency (kHz) | 10 |
+| `maxFreq` | Maximum frequency (Hz) | 10000 |
 | `dbThreshold` | Threshold in dB (relative to max) | -50 |
 | `freqStep` | Frequency band width (Hz) | 1000 |
 

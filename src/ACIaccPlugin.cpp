@@ -118,20 +118,20 @@ ACIaccPlugin::getParameterDescriptors() const
     ParameterDescriptor d;
     d.identifier = "minFreq";
     d.name = "Minimum Frequency";
-    d.description = "Minimum frequency (kHz) to include in calculation";
-    d.unit = "kHz";
+    d.description = "Minimum frequency (Hz) to include in calculation";
+    d.unit = "Hz";
     d.minValue = 0;
-    d.maxValue = m_inputSampleRate / 2000.0f;
+    d.maxValue = m_inputSampleRate / 2.0f;
     d.defaultValue = 0;
     d.isQuantized = false;
     list.push_back(d);
 
     d.identifier = "maxFreq";
     d.name = "Maximum Frequency";
-    d.description = "Maximum frequency (kHz) to include in calculation";
-    d.unit = "kHz";
+    d.description = "Maximum frequency (Hz) to include in calculation";
+    d.unit = "Hz";
     d.minValue = 0;
-    d.maxValue = m_inputSampleRate / 2000.0f;
+    d.maxValue = m_inputSampleRate / 2.0f;
     d.defaultValue = 0; // 0 means max
     d.isQuantized = false;
     list.push_back(d);
@@ -396,10 +396,10 @@ ACIaccPlugin::getRemainingFeatures()
         if (m_minFreq > 0 || m_maxFreq > 0) {
             float binResolution = (m_inputSampleRate / 2.0f) / (m_blockSize / 2);
             if (m_minFreq > 0) {
-                minBinIndex = static_cast<size_t>(std::round(m_minFreq * 1000.0f / binResolution));
+                minBinIndex = static_cast<size_t>(std::round(m_minFreq / binResolution));
             }
             if (m_maxFreq > 0) {
-                maxBinIndex = static_cast<size_t>(std::round(m_maxFreq * 1000.0f / binResolution));
+                maxBinIndex = static_cast<size_t>(std::round(m_maxFreq / binResolution));
                 if (maxBinIndex >= m_numBins) maxBinIndex = m_numBins - 1;
             }
         }

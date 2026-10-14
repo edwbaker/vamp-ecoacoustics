@@ -109,11 +109,11 @@ AEIaccPlugin::getParameterDescriptors() const
     ParameterDescriptor d;
     d.identifier = "maxFreq";
     d.name = "Maximum Frequency";
-    d.description = "Maximum frequency (kHz) to include in calculation";
-    d.unit = "kHz";
+    d.description = "Maximum frequency (Hz) to include in calculation";
+    d.unit = "Hz";
     d.minValue = 0;
-    d.maxValue = m_inputSampleRate / 2000.0f;
-    d.defaultValue = 10.0f;
+    d.maxValue = m_inputSampleRate / 2.0f;
+    d.defaultValue = 10000.0f;
     d.isQuantized = false;
     list.push_back(d);
 
@@ -143,7 +143,7 @@ AEIaccPlugin::getParameterDescriptors() const
 float
 AEIaccPlugin::getParameter(string identifier) const
 {
-    if (identifier == "maxFreq") return m_maxFreq / 1000.0f;
+    if (identifier == "maxFreq") return m_maxFreq;
     if (identifier == "dbThreshold") return m_dbThreshold;
     if (identifier == "freqStep") return m_freqStep;
     return 0;
@@ -153,7 +153,7 @@ void
 AEIaccPlugin::setParameter(string identifier, float value)
 {
     if (identifier == "maxFreq") {
-        m_maxFreq = value * 1000.0f;
+        m_maxFreq = value;
     } else if (identifier == "dbThreshold") {
         m_dbThreshold = value;
     } else if (identifier == "freqStep") {

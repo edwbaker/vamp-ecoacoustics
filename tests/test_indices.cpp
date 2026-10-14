@@ -261,6 +261,10 @@ static void apiChecks(const char *id, size_t outputs)
     for (size_t i = 0; i < params.size(); ++i) {
         check(std::fabs(p->getParameter(params[i].identifier) - params[i].defaultValue) < 1e-4,
               name + ": parameter " + params[i].identifier + " starts at its default");
+        // frequencies are in Hz throughout
+        if (params[i].identifier.find("Freq") != std::string::npos || params[i].identifier.find("anthro") == 0 ||
+            params[i].identifier.find("bio") == 0 || params[i].identifier == "freqStep")
+            check(params[i].unit == "Hz", name + ": parameter " + params[i].identifier + " is in Hz");
         float mid = 0.5f * (params[i].minValue + params[i].maxValue);
         p->setParameter(params[i].identifier, mid);
         check(std::fabs(p->getParameter(params[i].identifier) - mid) < 1.0,
@@ -365,9 +369,9 @@ int main(int argc, char **argv)
 
         // a frequency range holding no signal has far less ACI than the full range
         Params offBand;
-        offBand["minFreq"] = 7.0f; offBand["maxFreq"] = 9.0f;
+        offBand["minFreq"] = 7000.0f; offBand["maxFreq"] = 9000.0f;
         check(value<ACIaccPlugin>(SR, S.pulsed5k, offBand) < 0.5 * aPulses,
-              "aci-acc: 7-9 kHz of a 5 kHz signal has far less ACI than the full range");
+              "aci-acc: 7000-9000 Hz of a 5 kHz signal has far less ACI than the full range");
 
         stereoChecks<ACIaccPlugin>("aci-acc", S.pulsed5k, S.tone5k, 0, 0);
     }
@@ -384,11 +388,11 @@ int main(int argc, char **argv)
         check(one < 0.5 * flat, "adi-acc: a single tone is far less diverse than noise");
         double two = value<ADIaccPlugin>(SR, sum(S.tone5k, tone(2500, 0.5, SR, SECS)));
         check(two > one, "adi-acc: two tones in different bands are more diverse than one");
-        // maxFreq is in kHz: 5 kHz of flat noise is five 1 kHz bands
+        // maxFreq is in Hz: 5000 Hz of flat noise is five 1 kHz bands
         Params fiveKHz;
-        fiveKHz["maxFreq"] = 5.0f;
+        fiveKHz["maxFreq"] = 5000.0f;
         checkBetween(value<ADIaccPlugin>(SR, S.noiseW, fiveKHz), std::log(5.0) - 0.05, std::log(5.0) + 1e-6,
-                     "adi-acc: maxFreq = 5 (kHz) gives five bands, ADI ~ ln(5)");
+                     "adi-acc: maxFreq = 5000 gives five bands, ADI ~ ln(5)");
         stereoChecks<ADIaccPlugin>("adi-acc", S.noiseW, S.tone5k, 0, 1);
     }
 
@@ -401,11 +405,11 @@ int main(int argc, char **argv)
         baseline("aei-acc/tone5k", uneven);
         checkBetween(even, -1e-6, 0.05, "aei-acc: flat noise is evenly spread (Gini ~ 0)");
         checkBetween(uneven, 0.7, 1.0, "aei-acc: one occupied band out of ten is very uneven");
-        // maxFreq is in kHz: ceil(5.5) = 6 bands, the 5 kHz tone fills one (Gini 5/6)
+        // maxFreq is in Hz: ceil(5500/1000) = 6 bands, the 5 kHz tone fills one (Gini 5/6)
         Params fiveKHz;
-        fiveKHz["maxFreq"] = 5.5f;
+        fiveKHz["maxFreq"] = 5500.0f;
         checkBetween(value<AEIaccPlugin>(SR, S.tone5k, fiveKHz), 0.55, 0.85,
-                     "aei-acc: maxFreq = 5.5 (kHz) gives six bands");
+                     "aei-acc: maxFreq = 5500 gives six bands");
         stereoChecks<AEIaccPlugin>("aei-acc", S.noiseW, S.tone5k, 0, 1);
     }
 
