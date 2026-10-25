@@ -358,7 +358,7 @@ void ADIaccPlugin::processFrame(size_t channel, bool padded)
 {
     size_t blockSize = m_blockSize;
 
-    float& globalMax = m_globalMax_ch[channel];
+    double& globalMax = m_globalMax_ch[channel];
     const double* frameData = m_fft->buffer();
 
     // Check if this frame is all zeros (zero-padded by host). The energy is a sum of non-negative terms, so it is
@@ -391,7 +391,7 @@ void ADIaccPlugin::processFrame(size_t channel, bool padded)
     m_fft->forBins(0, m_numBins, [magnitudes, storedBins, &globalMax](size_t b, double real, double imag) {
         double magnitude = std::sqrt(real * real + imag * imag);
 
-        if (static_cast<float>(magnitude) > globalMax) globalMax = static_cast<float>(magnitude);
+        if (magnitude > globalMax) globalMax = magnitude;
 
         if (b < storedBins) magnitudes[b] = magnitude;
     });
