@@ -377,13 +377,13 @@ void AEIaccPlugin::processBlock(size_t channel, const float* input)
     m_fft->forward();
 
     double* magnitudes = m_magnitude_ch[channel].appendRow();
-    float& globalMax = m_globalMax_ch[channel];
+    double& globalMax = m_globalMax_ch[channel];
     const size_t windowLength = m_blockSize;
     m_fft->forBins(0, m_numBins, [magnitudes, &globalMax, windowLength](size_t b, double real, double imag) {
         double magnitude = std::sqrt(real * real + imag * imag);
         // Apply R's scaling: divide by window length, multiply by 2
         magnitude = magnitude / windowLength * 2.0;
-        if (static_cast<float>(magnitude) > globalMax) globalMax = static_cast<float>(magnitude);
+        if (magnitude > globalMax) globalMax = magnitude;
         magnitudes[b] = magnitude;
     });
     
