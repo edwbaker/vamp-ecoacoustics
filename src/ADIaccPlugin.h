@@ -11,6 +11,7 @@
 #define _ADI_ACC_PLUGIN_H_
 
 #include "vamp-sdk/Plugin.h"
+#include "RowStore.h"
 #include <vector>
 #include <string>
 
@@ -56,7 +57,7 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processFrame(size_t channel);
+    void processFrame(size_t channel, bool padded);
 
     // Internal
     size_t m_channels;
@@ -68,6 +69,8 @@ protected:
     std::vector<size_t> m_frameCount_ch;
     std::vector<float> m_globalMax_ch; // Track global maximum magnitude per channel
     std::vector<size_t> m_sampleCount_ch; // Track actual samples received per channel
+    std::vector<float> m_maxBeforeLast_ch; // Global maximum before the last frame
+    std::vector<char> m_lastPadded_ch;     // The last frame's block ended in zeros: the host padded an incomplete window
 
     // FFT
     InPlaceRealFFT *m_fft;
@@ -88,11 +91,11 @@ protected:
     float m_dbThreshold;
     float m_freqStep; // Hz
 
-    // Histogram-based optimization - per channel
-    std::vector<std::vector<std::vector<int>>> m_bandHistograms_ch;
-    bool m_bandsInitialized;
-    std::vector<int> m_bandStartBins;
-    std::vector<int> m_bandEndBins;
+    // Every frame's magnitudes up to the highest band (one row of m_storedBins doubles per frame), kept for the
+    // threshold counts in getRemainingFeatures(), as in AEIaccPlugin
+    std::vector<RowStoreD> m_magnitude_ch;
+    size_t m_storedBins;
+    int m_numBands;
 };
 
 #endif
