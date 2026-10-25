@@ -226,7 +226,11 @@ BIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     m_globalMax_ch.assign(m_channels, 0.0f);
     m_spectralData_ch.resize(m_channels);
     m_accumulatedSpectrum_ch.resize(m_channels);
-    
+    m_pendingPower_ch.assign(m_channels, std::vector<double>(m_numBins, 0.0));
+    m_hasPending_ch.assign(m_channels, 0);
+    m_pendingPadded_ch.assign(m_channels, 0);
+    m_maxBeforeLast_ch.assign(m_channels, 0.0f);
+
     for (size_t ch = 0; ch < m_channels; ++ch) {
         m_spectralData_ch[ch].clear();
         m_accumulatedSpectrum_ch[ch].assign(m_numBins, 0.0);
@@ -269,6 +273,9 @@ BIaccPlugin::reset()
         m_frameCount_ch[ch] = 0;
         m_globalMax_ch[ch] = 0.0f;
         m_accumulatedSpectrum_ch[ch].assign(m_numBins, 0.0);
+        m_hasPending_ch[ch] = 0;
+        m_pendingPadded_ch[ch] = 0;
+        m_maxBeforeLast_ch[ch] = 0.0f;
     }
 }
 
@@ -287,43 +294,55 @@ BIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
         for (size_t i = 0; i < m_blockSize; ++i) {
             frame[i] = static_cast<double>(src[i]) * win[i];
         }
-        
-        processFrame(ch);
+
+        // A block ending in zeros is the host's padding of an incomplete last window (the rule ACIaccPlugin uses)
+        processFrame(ch, src[m_blockSize - 1] == 0.0f);
     }
     
     return fs;
 }
 
-void BIaccPlugin::processFrame(size_t channel)
+void BIaccPlugin::processFrame(size_t channel, bool padded)
 {
     double* accSpectrum = m_accumulatedSpectrum_ch[channel].data();
+    double* pending = m_pendingPower_ch[channel].data();
     float& globalMax = m_globalMax_ch[channel];
-    
+
+    // The previous frame was not the last one: add it to the sums now (the additions are in the same order as before)
+    if (m_hasPending_ch[channel]) {
+        for (size_t b = 0; b < m_numBins; ++b) {
+            accSpectrum[b] += pending[b];
+        }
+        m_frameCount_ch[channel]++;
+    }
+    m_maxBeforeLast_ch[channel] = globalMax;
+
     // Perform FFT
     m_fft->forward();
 
-    // Compute magnitudes and accumulate
+    // Compute magnitudes; the powers wait in pending until the next frame or getRemainingFeatures()
     // Bin 0 (DC)
     double real0 = m_fft->realOfBin0();
     double mag0 = std::abs(real0);
     if (static_cast<float>(mag0) > globalMax) globalMax = static_cast<float>(mag0);
-    accSpectrum[0] += mag0 * mag0; // Accumulate Power
+    pending[0] = mag0 * mag0; // Power
 
     // Bins 1 to N/2 - 1. The global maximum is float(sqrt(magSq)) over all bins; float(sqrt(x)) never decreases as
     // x grows, so it is the same as float(sqrt(largest magSq)), which needs one sqrt per frame instead of one per bin.
     double maxSq = 0.0;
-    m_fft->forBins(1, m_numBins, [accSpectrum, &maxSq](size_t i, double real, double imag) {
+    m_fft->forBins(1, m_numBins, [pending, &maxSq](size_t i, double real, double imag) {
         double magSq = real * real + imag * imag;
 
         if (magSq > maxSq) maxSq = magSq;
 
-        accSpectrum[i] += magSq;
+        pending[i] = magSq;
     });
     if (static_cast<float>(std::sqrt(maxSq)) > globalMax) {
         globalMax = static_cast<float>(std::sqrt(maxSq));
     }
-    
-    m_frameCount_ch[channel]++;
+
+    m_hasPending_ch[channel] = 1;
+    m_pendingPadded_ch[channel] = padded;
 }
 
 Vamp::Plugin::FeatureSet
@@ -333,6 +352,21 @@ BIaccPlugin::getRemainingFeatures()
     
     // Calculate BI for each channel
     for (size_t ch = 0; ch < m_channels; ++ch) {
+        // seewave::spectro uses only complete windows: the newest frame counts unless the host padded its block with
+        // zeros, or it is the only frame
+        if (m_hasPending_ch[ch]) {
+            if (!m_pendingPadded_ch[ch] || m_frameCount_ch[ch] == 0) {
+                const double* pending = m_pendingPower_ch[ch].data();
+                for (size_t b = 0; b < m_numBins; ++b) {
+                    m_accumulatedSpectrum_ch[ch][b] += pending[b];
+                }
+                m_frameCount_ch[ch]++;
+            } else {
+                m_globalMax_ch[ch] = m_maxBeforeLast_ch[ch];
+            }
+            m_hasPending_ch[ch] = 0;
+        }
+
         if (m_frameCount_ch[ch] == 0) {
             Feature f;
             f.hasTimestamp = true;
