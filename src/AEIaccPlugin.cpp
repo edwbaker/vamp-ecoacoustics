@@ -244,6 +244,8 @@ AEIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
     // Initialize per-channel vectors
     m_frameCount_ch.assign(m_channels, 0);
     m_globalMax_ch.assign(m_channels, 0.0f);
+    m_maxBeforeLast_ch.assign(m_channels, 0.0f);
+    m_lastPadded_ch.assign(m_channels, 0);
     m_magnitude_ch.resize(m_channels);
     m_spectralData_ch.resize(m_channels);
     m_bandAboveThresholdCount_ch.resize(m_channels);
@@ -280,6 +282,8 @@ AEIaccPlugin::reset()
         m_magnitude_ch[ch].clear();
         m_frameCount_ch[ch] = 0;
         m_globalMax_ch[ch] = 0.0f;
+        m_maxBeforeLast_ch[ch] = 0.0f;
+        m_lastPadded_ch[ch] = 0;
         m_bandAboveThresholdCount_ch[ch].clear();
         m_bandTotalCount_ch[ch].clear();
     }
@@ -361,6 +365,11 @@ void AEIaccPlugin::initBands()
 void AEIaccPlugin::processBlock(size_t channel, const float* input)
 {
     const size_t blockSize = m_blockSize;
+
+    // A block ending in zeros is the host's padding of an incomplete last window (the rule ACIaccPlugin uses)
+    m_lastPadded_ch[channel] = input[blockSize - 1] == 0.0f;
+    m_maxBeforeLast_ch[channel] = m_globalMax_ch[channel];
+
     double* frameData = m_fft->buffer();
     for (size_t i = 0; i < blockSize; ++i) {
         frameData[i] = input[i] * m_window[i];
@@ -400,6 +409,14 @@ AEIaccPlugin::getRemainingFeatures()
 
         initBands();
 
+        // seewave::spectro uses only complete windows: leave out a last block the host padded with zeros, unless it
+        // is the only one
+        size_t numFrames = m_magnitude_ch[ch].rows();
+        if (m_lastPadded_ch[ch] && numFrames > 1) {
+            --numFrames;
+            m_globalMax_ch[ch] = m_maxBeforeLast_ch[ch];
+        }
+
         // Calculate global max dB and threshold for this channel
         double globalMaxDB = -200.0;
         if (m_globalMax_ch[ch] > 1e-10) {
@@ -411,7 +428,6 @@ AEIaccPlugin::getRemainingFeatures()
         // Count values above threshold for each band. A cell is above the threshold when
         // 20 * log10(magnitude) > thresholdDB (-200 dB for magnitudes up to 1e-10); DbAbove gives that answer and
         // calls log10 only for magnitudes close to the threshold (see DbAbove.h).
-        size_t numFrames = m_magnitude_ch[ch].rows();
         size_t numBands = m_bandAboveThresholdCount_ch[ch].size();
         const DbAbove isAbove(thresholdDB);
 

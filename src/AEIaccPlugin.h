@@ -69,6 +69,8 @@ protected:
     // Per-channel tracking
     std::vector<size_t> m_frameCount_ch;
     std::vector<float> m_globalMax_ch;
+    std::vector<float> m_maxBeforeLast_ch; // Global maximum before the last block
+    std::vector<char> m_lastPadded_ch;     // The last block ended in zeros: the host padded an incomplete window
 
     // FFT
     InPlaceRealFFT *m_fft;
