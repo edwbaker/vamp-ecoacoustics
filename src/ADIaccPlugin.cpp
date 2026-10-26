@@ -105,7 +105,7 @@ ADIaccPlugin::getMaker() const
 int
 ADIaccPlugin::getPluginVersion() const
 {
-    return 1;
+    return 2;
 }
 
 string

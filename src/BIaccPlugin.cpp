@@ -94,7 +94,7 @@ BIaccPlugin::getMaker() const
 int
 BIaccPlugin::getPluginVersion() const
 {
-    return 1;
+    return 2;
 }
 
 string

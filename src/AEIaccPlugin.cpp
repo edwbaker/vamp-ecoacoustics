@@ -100,7 +100,7 @@ AEIaccPlugin::getMaker() const
 int
 AEIaccPlugin::getPluginVersion() const
 {
-    return 1;
+    return 2;
 }
 
 string

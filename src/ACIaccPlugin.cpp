@@ -110,7 +110,7 @@ ACIaccPlugin::getMaker() const
 int
 ACIaccPlugin::getPluginVersion() const
 {
-    return 1;
+    return 2;
 }
 
 string
