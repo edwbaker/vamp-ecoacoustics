@@ -109,7 +109,7 @@ Then open http://localhost:8000. The page has to be served over HTTP: browsers w
 |-----------|-------------|---------|
 | `minFreq` | Minimum frequency (Hz) | 0 |
 | `maxFreq` | Maximum frequency (Hz) | Nyquist |
-| `nbWindows` | Number of time windows to divide the file into (aci-acc). Set to `0` to auto-select windows so each is ≈ 5 s | 12 |
+| `nbWindows` | Number of time windows to divide the file into (aci-acc). `0` uses clusters of `clusterSize` seconds (5 s), as `soundecology::acoustic_complexity` does | 0 |
 
 ### ADI (adi-acc)
 | Parameter | Description | Default |

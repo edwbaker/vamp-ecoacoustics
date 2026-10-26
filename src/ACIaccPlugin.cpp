@@ -25,7 +25,7 @@ namespace {
 const float kDefaultMinFreq = 0.0f;       // Hz; 0 = no lower limit
 const float kDefaultMaxFreq = 0.0f;       // Hz; 0 = no upper limit
 const float kDefaultClusterSize = 5.0f;   // seconds
-const int   kDefaultNbWindows = 12;
+const int   kDefaultNbWindows = 0;        // 0 = clusters of clusterSize seconds, as soundecology::acoustic_complexity
 }
 
 ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
@@ -157,7 +157,7 @@ ACIaccPlugin::getParameterDescriptors() const
 
     d.identifier = "nbWindows";
     d.name = "Number of Windows";
-    d.description = "Number of time windows to divide the file into. Set to 0 to auto-select windows ≈ 5 s each";
+    d.description = "Number of time windows to divide the file into. 0 (the default) uses clusters of Cluster Size seconds, as soundecology::acoustic_complexity does";
     d.unit = "";
     d.minValue = 0;
     d.maxValue = 1000;
