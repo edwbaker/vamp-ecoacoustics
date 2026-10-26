@@ -68,7 +68,10 @@ protected:
     
     // Per-channel tracking
     std::vector<size_t> m_frameCount_ch;
-    std::vector<float> m_globalMax_ch;
+    std::vector<double> m_globalMax_ch;      // Double: a float maximum moves the threshold by up to ~1e-6 dB,
+                                             // enough to change the count for a cell that close to it
+    std::vector<double> m_maxBeforeLast_ch;  // Global maximum before the last block
+    std::vector<char> m_lastPadded_ch;     // The last block ended in zeros: the host padded an incomplete window
 
     // FFT
     InPlaceRealFFT *m_fft;

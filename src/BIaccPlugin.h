@@ -56,7 +56,7 @@ public:
     FeatureSet getRemainingFeatures();
 
 protected:
-    void processFrame(size_t channel);
+    void processFrame(size_t channel, bool padded);
 
     // Internal
     size_t m_channels;
@@ -91,6 +91,13 @@ protected:
     
     // Accumulator - per channel
     std::vector<std::vector<double>> m_accumulatedSpectrum_ch;
+
+    // The newest frame's power, added to the sums only when the next frame arrives, or at the end unless the host
+    // padded its block with zeros (seewave::spectro, and so soundecology, uses only complete windows)
+    std::vector<std::vector<double>> m_pendingPower_ch;
+    std::vector<char> m_hasPending_ch;
+    std::vector<char> m_pendingPadded_ch;
+    std::vector<float> m_maxBeforeLast_ch; // Global maximum before the newest frame
 };
 
 #endif

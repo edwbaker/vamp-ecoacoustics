@@ -12,6 +12,7 @@
 
 #include "ADIaccPlugin.h"
 #include "RealFFT.h"
+#include "DbAbove.h"
 #include <cmath>
 #include <algorithm>
 #include <numeric>
@@ -45,7 +46,9 @@ ADIaccPlugin::ADIaccPlugin(float inputSampleRate) :
     m_minFreq(0.0f),
     m_maxFreq(kDefaultMaxFreq),
     m_dbThreshold(kDefaultDbThreshold),
-    m_freqStep(kDefaultFreqStep)
+    m_freqStep(kDefaultFreqStep),
+    m_storedBins(0),
+    m_numBands(0)
 {
 }
 
@@ -254,8 +257,10 @@ bool ADIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize
     m_globalMax_ch.assign(m_channels, 0.0f);
     m_sampleCount_ch.assign(m_channels, 0);
     m_spectralData_ch.resize(m_channels);
-    m_bandHistograms_ch.resize(m_channels);
-    
+    m_magnitude_ch.resize(m_channels);
+    m_maxBeforeLast_ch.assign(m_channels, 0.0f);
+    m_lastPadded_ch.assign(m_channels, 0);
+
     for (size_t ch = 0; ch < m_channels; ++ch) {
         m_spectralData_ch[ch].clear();
     }
@@ -263,9 +268,10 @@ bool ADIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize
     // Initialize FFT
     if (m_fft) delete m_fft;
     m_fft = new InPlaceRealFFT(blockSize);
-    
+
+    // Symmetric window, as seewave's hanning.w and hamming.w (denominator n - 1)
     m_window.resize(m_blockSize);
-    double denom = static_cast<double>(m_windowType == Hamming ? m_blockSize - 1 : m_blockSize);
+    double denom = static_cast<double>(m_blockSize - 1);
     if (m_windowType == Hamming) {
         for (size_t i = 0; i < m_blockSize; ++i) {
             m_window[i] = static_cast<float>(0.54 - 0.46 * std::cos(2.0 * M_PI * i / denom));
@@ -295,15 +301,21 @@ bool ADIaccPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize
             }
         }
     }
+    m_numBands = numBands;
+
+    // Only the bins that belong to a band are kept for the counts
+    m_storedBins = 0;
+    for (size_t b = 0; b < m_numBins; ++b) {
+        if (!m_binToBands[b].empty()) m_storedBins = b + 1;
+    }
+    for (size_t ch = 0; ch < m_channels; ++ch) {
+        m_magnitude_ch[ch].init(m_storedBins);
+    }
 
     if (ADI_DEBUG) {
         std::cerr << "Window type: " << (m_windowType == Hamming ? "Hamming" : "Hanning") << std::endl;
         std::cerr << "Window[0]: " << m_window[0] << ", Window[N/2]: " << m_window[m_blockSize/2] << std::endl;
     }
-
-    m_bandsInitialized = false;
-    m_bandStartBins.clear();
-    m_bandEndBins.clear();
 
     return true;
 }
@@ -316,9 +328,10 @@ ADIaccPlugin::reset()
         m_frameCount_ch[ch] = 0;
         m_globalMax_ch[ch] = 0.0f;
         m_sampleCount_ch[ch] = 0;
-        m_bandHistograms_ch[ch].clear();
+        m_magnitude_ch[ch].clear();
+        m_maxBeforeLast_ch[ch] = 0.0f;
+        m_lastPadded_ch[ch] = 0;
     }
-    m_bandsInitialized = false;
 }
 
 Vamp::Plugin::FeatureSet
@@ -340,52 +353,19 @@ ADIaccPlugin::process(const float *const *inputBuffers, Vamp::RealTime timestamp
         for (size_t i = 0; i < m_blockSize; ++i) {
             dst[i] = static_cast<double>(src[i]) * win[i];
         }
-        
-        processFrame(ch);
+
+        // A block ending in zeros is the host's padding of an incomplete last window (the rule ACIaccPlugin uses)
+        processFrame(ch, src[m_blockSize - 1] == 0.0f);
     }
     
     return fs;
 }
 
-void ADIaccPlugin::processFrame(size_t channel)
+void ADIaccPlugin::processFrame(size_t channel, bool padded)
 {
-    // Initialize bands if needed (same for all channels)
-    if (!m_bandsInitialized) {
-        float maxFreqHz = m_maxFreq;
-        if (maxFreqHz <= 0) maxFreqHz = m_inputSampleRate / 2.0f;
-        
-        int numBands = static_cast<int>(std::ceil(maxFreqHz / m_freqStep));
-        
-        // Initialize histograms for all channels
-        for (size_t ch = 0; ch < m_channels; ++ch) {
-            m_bandHistograms_ch[ch].assign(numBands, std::vector<int>(30000, 0));
-        }
-        
-        m_bandStartBins.assign(numBands, -1);
-        m_bandEndBins.assign(numBands, -1);
-        
-        float binResolution = (m_inputSampleRate / 2.0f) / (m_blockSize / 2);
-        
-        for (size_t b = 0; b < m_numBins; ++b) {
-            float freq = b * binResolution;
-            if (freq <= maxFreqHz) {
-                int bandIndex = static_cast<int>(std::floor(freq / m_freqStep));
-                if (bandIndex >= 0 && bandIndex < numBands) {
-                    if (m_bandStartBins[bandIndex] == -1) {
-                        m_bandStartBins[bandIndex] = static_cast<int>(b);
-                    }
-                    m_bandEndBins[bandIndex] = static_cast<int>(b) + 1;
-                }
-            }
-        }
-        
-        m_bandsInitialized = true;
-    }
-
     size_t blockSize = m_blockSize;
-    
-    float& globalMax = m_globalMax_ch[channel];
-    auto& histograms = m_bandHistograms_ch[channel];
+
+    double& globalMax = m_globalMax_ch[channel];
     const double* frameData = m_fft->buffer();
 
     // Check if this frame is all zeros (zero-padded by host). The energy is a sum of non-negative terms, so it is
@@ -408,26 +388,19 @@ void ADIaccPlugin::processFrame(size_t channel)
     
     m_fft->forward();
 
-    // Process bins 0 to N/2-1 (excluding Nyquist) to match seewave::spectro
-    m_fft->forBins(0, m_numBins, [&](size_t b, double real, double imag) {
+    m_maxBeforeLast_ch[channel] = globalMax;
+    m_lastPadded_ch[channel] = padded;
+
+    // Process bins 0 to N/2-1 (excluding Nyquist) to match seewave::spectro. The global maximum is over all of them;
+    // only the bins that belong to a band are kept for the counts.
+    double* magnitudes = m_magnitude_ch[channel].appendRow();
+    const size_t storedBins = m_storedBins;
+    m_fft->forBins(0, m_numBins, [magnitudes, storedBins, &globalMax](size_t b, double real, double imag) {
         double magnitude = std::sqrt(real * real + imag * imag);
-        
-        if (static_cast<float>(magnitude) > globalMax) globalMax = static_cast<float>(magnitude);
-        
-        double db = -200.0;
-        if (magnitude > 1e-10) {
-            db = 20.0 * std::log10(magnitude);
-        }
-        
-        int histBin = static_cast<int>((db + 200.0) * 100.0);
-        if (histBin < 0) histBin = 0;
-        if (histBin >= 30000) histBin = 29999;
-        
-        // Use pre-computed bin-to-bands mapping instead of checking every band
-        const auto& bands = m_binToBands[b];
-        for (int band : bands) {
-            histograms[band][histBin]++;
-        }
+
+        if (magnitude > globalMax) globalMax = magnitude;
+
+        if (b < storedBins) magnitudes[b] = magnitude;
     });
 
     m_frameCount_ch[channel]++;
@@ -440,7 +413,15 @@ ADIaccPlugin::getRemainingFeatures()
     
     // Calculate ADI for each channel
     for (size_t ch = 0; ch < m_channels; ++ch) {
-        if (m_frameCount_ch[ch] == 0) {
+        // seewave::spectro uses only complete windows: leave out a last frame whose block the host padded with
+        // zeros, unless it is the only frame
+        size_t numFrames = m_magnitude_ch[ch].rows();
+        if (m_lastPadded_ch[ch] && numFrames > 1) {
+            --numFrames;
+            m_globalMax_ch[ch] = m_maxBeforeLast_ch[ch];
+        }
+
+        if (numFrames == 0) {
             Feature f;
             f.hasTimestamp = true;
             f.timestamp = Vamp::RealTime::frame2RealTime(0, static_cast<unsigned int>(m_inputSampleRate));
@@ -456,37 +437,41 @@ ADIaccPlugin::getRemainingFeatures()
         }
 
         double thresholdDB = globalMaxDB + m_dbThreshold;
-        
-        int thresholdBin = static_cast<int>(std::floor((thresholdDB + 200.0) * 100.0));
-        if (thresholdBin >= 30000) thresholdBin = 29999;
 
-        
-        // Calculate band proportions
-        size_t numBands = m_bandHistograms_ch[ch].size();
-        std::vector<double> bandProportions(numBands, 0.0);
-        double sumProportions = 0.0;
-        
-        for (size_t i = 0; i < numBands; ++i) {
-            const int* histData = m_bandHistograms_ch[ch][i].data();
-            size_t histSize = m_bandHistograms_ch[ch][i].size();
-            long count = 0;
-            long totalCells = 0;
-            
-            // Sum all bins and count above threshold in single pass
-            for (size_t bin = 0; bin < histSize; ++bin) {
-                int val = histData[bin];
-                totalCells += val;
-                if (static_cast<int>(bin) > thresholdBin) {
-                    count += val;
+        // Count the cells above the threshold in each band, as AEIaccPlugin does: a cell is above the threshold when
+        // 20 * log10(magnitude) > thresholdDB (-200 dB for magnitudes up to 1e-10); DbAbove gives that answer and
+        // calls log10 only for magnitudes close to the threshold (see DbAbove.h).
+        size_t numBands = static_cast<size_t>(m_numBands);
+        std::vector<long> aboveCount(numBands, 0);
+        std::vector<long> totalCount(numBands, 0);
+        const DbAbove isAbove(thresholdDB);
+
+        for (size_t frame = 0; frame < numFrames; ++frame) {
+            const double* magnitudes = m_magnitude_ch[ch].row(frame);
+            for (size_t b = 0; b < m_storedBins; ++b) {
+                const auto& bands = m_binToBands[b];
+                if (bands.empty()) continue;
+                const bool above = isAbove(magnitudes[b]);
+                for (int band : bands) {
+                    ++totalCount[band];
+                    if (above) ++aboveCount[band];
                 }
             }
-            
-            if (totalCells > 0) {
-                bandProportions[i] = static_cast<double>(count) / static_cast<double>(totalCells);
+        }
+
+        m_magnitude_ch[ch].clear();
+
+        // Calculate band proportions
+        std::vector<double> bandProportions(numBands, 0.0);
+        double sumProportions = 0.0;
+
+        for (size_t i = 0; i < numBands; ++i) {
+            if (totalCount[i] > 0) {
+                bandProportions[i] = static_cast<double>(aboveCount[i]) / static_cast<double>(totalCount[i]);
             } else {
                 bandProportions[i] = 0.0;
             }
-            
+
             sumProportions += bandProportions[i];
         }
         
