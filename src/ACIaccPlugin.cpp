@@ -367,7 +367,11 @@ ACIaccPlugin::getRemainingFeatures()
         size_t paddingSamples = m_blockSize - m_lastBlockValidSamples[ch];
         size_t trueSampleCount = m_totalSamplesReceived[ch] - paddingSamples;
         double duration = static_cast<double>(trueSampleCount) / m_inputSampleRate;
-        
+
+        // seewave::spectro (and so soundecology) uses only complete windows: a last frame the host padded with
+        // zeros does not count, which keeps the frames per cluster the same as soundecology's
+        if (paddingSamples > 0 && totalFrames > 1) --totalFrames;
+
         // Determine clusters/frames per cluster.
         size_t framesPerCluster = 1;
         size_t numClusters = 1;
