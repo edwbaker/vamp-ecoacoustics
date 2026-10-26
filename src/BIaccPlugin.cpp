@@ -397,7 +397,9 @@ BIaccPlugin::getRemainingFeatures()
         std::vector<double> meanSpectrumDB(m_numBins);
         for (size_t b = 0; b < m_numBins; ++b) {
             double val = meanSpectrum[b] / maxPower;
-            if (val < 1e-12) val = 1e-12; // Floor to -120dB (Power) -> -120dB
+            // No floor, as in soundecology. Only an exactly zero power, where log10 gives -inf (and soundecology a
+            // NaN), is held at 1e-300 (-3000 dB), so that silence still gives a BI of 0
+            if (val <= 0.0) val = 1e-300;
             meanSpectrumDB[b] = 10.0 * std::log10(val);
         }
 
