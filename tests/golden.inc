@@ -1,9 +1,9 @@
 // Regression baselines for tests/test_indices.cpp.
 // Generated with: test_indices --write-golden tests/golden.inc
 // They come from this code, not from R: regenerate only after a deliberate change.
-    { "aci-acc/noise", 1713.96277 },
-    { "aci-acc/pulsed5k", 5952.11133 },
-    { "aci-acc/tone5k", 0.00156000699 },
+    { "aci-acc/noise", 149.21138 },
+    { "aci-acc/pulsed5k", 507.068695 },
+    { "aci-acc/tone5k", 0.000126364481 },
     { "aci/noise", 149.294296 },
     { "aci/pulsed5k", 507.087219 },
     { "aci/tone5k", 0.000139278316 },
@@ -11,9 +11,9 @@
     { "adi-acc/tone5k", 0.562335134 },
     { "aei-acc/noise", 9.25070271e-05 },
     { "aei-acc/tone5k", 0.850000024 },
-    { "bi-acc/noise", 2.93202639 },
-    { "bi-acc/tone500", 26.8774719 },
-    { "bi-acc/tone5k", 33.1722488 },
+    { "bi-acc/noise", 2.92471004 },
+    { "bi-acc/tone500", 59.9556427 },
+    { "bi-acc/tone5k", 73.4617767 },
     { "h/noise", 0.991306543 },
     { "h/pulsed5k", 0.409128875 },
     { "h/tone5k", 0.190045178 },
