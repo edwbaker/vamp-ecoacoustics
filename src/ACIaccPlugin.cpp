@@ -25,7 +25,7 @@ namespace {
 const float kDefaultMinFreq = 0.0f;       // Hz; 0 = no lower limit
 const float kDefaultMaxFreq = 0.0f;       // Hz; 0 = no upper limit
 const float kDefaultClusterSize = 5.0f;   // seconds
-const int   kDefaultNbWindows = 12;
+const int   kDefaultNbWindows = 0;        // 0 = clusters of clusterSize seconds, as soundecology::acoustic_complexity
 }
 
 ACIaccPlugin::ACIaccPlugin(float inputSampleRate) :
@@ -110,7 +110,7 @@ ACIaccPlugin::getMaker() const
 int
 ACIaccPlugin::getPluginVersion() const
 {
-    return 1;
+    return 2;
 }
 
 string
@@ -157,7 +157,7 @@ ACIaccPlugin::getParameterDescriptors() const
 
     d.identifier = "nbWindows";
     d.name = "Number of Windows";
-    d.description = "Number of time windows to divide the file into. Set to 0 to auto-select windows ≈ 5 s each";
+    d.description = "Number of time windows to divide the file into. 0 (the default) uses clusters of Cluster Size seconds, as soundecology::acoustic_complexity does";
     d.unit = "";
     d.minValue = 0;
     d.maxValue = 1000;
@@ -367,7 +367,11 @@ ACIaccPlugin::getRemainingFeatures()
         size_t paddingSamples = m_blockSize - m_lastBlockValidSamples[ch];
         size_t trueSampleCount = m_totalSamplesReceived[ch] - paddingSamples;
         double duration = static_cast<double>(trueSampleCount) / m_inputSampleRate;
-        
+
+        // seewave::spectro (and so soundecology) uses only complete windows: a last frame the host padded with
+        // zeros does not count, which keeps the frames per cluster the same as soundecology's
+        if (paddingSamples > 0 && totalFrames > 1) --totalFrames;
+
         // Determine clusters/frames per cluster.
         size_t framesPerCluster = 1;
         size_t numClusters = 1;
