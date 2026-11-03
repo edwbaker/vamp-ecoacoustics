@@ -84,8 +84,12 @@ jobs:
           r-version: release
           use-public-rspm: true
 
+      # On Windows these steps run in Rtools' bash, where R has no CRAN mirror set
       - name: Install ReVAMP from CRAN
-        run: Rscript -e 'install.packages("ReVAMP"); cat("ReVAMP", format(packageVersion("ReVAMP")), "\n")'
+        run: >-
+          Rscript -e 'if (getOption("repos")[["CRAN"]] %in% c("@CRAN@", ""))
+          options(repos = c(CRAN = "https://cloud.r-project.org"));
+          install.packages("ReVAMP"); cat("ReVAMP", format(packageVersion("ReVAMP")), "\n")'
 
       - name: Native library through ReVAMP
         env:
