@@ -14,6 +14,9 @@ demo/vamp-host.js
 *.lib
 *.a
 *.py
+!tests/portability/*.R
+!tests/portability/*.js
+!tests/portability/*.py
 build/
 tests/test_indices
 tests/test_indices.exe
