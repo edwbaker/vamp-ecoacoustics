@@ -97,6 +97,14 @@ jobs:
         with:
           files: release-assets/*
 
+  # The released binaries in Vamp hosts on each platform, against R (portability.yml)
+  portability:
+    name: Check the release in Vamp hosts
+    needs: release
+    uses: ./.github/workflows/portability.yml
+    with:
+      tag: ${{ github.ref_name }}
+
   cdn:
     name: Publish to cdn.audioblast.org
     needs: build-wasm

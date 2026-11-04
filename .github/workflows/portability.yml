@@ -1,0 +1,137 @@
+name: Release portability
+
+# Checks a release's binaries in real Vamp hosts on Linux, macOS and Windows: the native library through ReVAMP (from
+# CRAN) and the WebAssembly library through vamp-wasm in Node.js, on the 91 pilot recordings of the Acoustic Index
+# User's Guide, against the R functions' values in the 0.3.0 benchmark. See tests/portability/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release to check
+        default: v0.3.0
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+  push:
+    paths:
+      - .github/workflows/portability.yml
+      - tests/portability/**
+  pull_request:
+    paths:
+      - .github/workflows/portability.yml
+      - tests/portability/**
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || 'v0.3.0' }}
+  VAMP_WASM_TAG: v0.1.4
+  RECORDINGS_URL: https://zenodo.org/api/records/11004284/files/Acoustic_index_users_guide_example_recordings.zip/content
+  RECORDINGS_MD5: 4f5eccdfade43382d0f92641551b0c06
+
+jobs:
+  check:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            library: vamp-ecoacoustics.so
+          - os: macos-latest
+            library: vamp-ecoacoustics.dylib
+          - os: windows-latest
+            library: vamp-ecoacoustics.dll
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download the release's libraries and vamp-wasm
+        run: |
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "${{ matrix.library }}" -D plugins
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p vamp-ecoacoustics.wasm -D wasm
+          gh release download "$VAMP_WASM_TAG" -R edwbaker/vamp-wasm -p "vamp-wasm-$VAMP_WASM_TAG.zip" -D wasm
+          PY=$(command -v python || command -v python3)
+          "$PY" -m zipfile -e "wasm/vamp-wasm-$VAMP_WASM_TAG.zip" wasm/host
+          ls -l plugins wasm wasm/host
+
+      - name: Cache the pilot recordings
+        uses: actions/cache@v6
+        with:
+          path: recordings.zip
+          key: aiguide-recordings-${{ env.RECORDINGS_MD5 }}
+          enableCrossOsArchive: true
+
+      - name: Download and unpack the pilot recordings
+        run: |
+          [ -f recordings.zip ] || curl -fsSL --retry 5 --retry-delay 15 -o recordings.zip "$RECORDINGS_URL"
+          PY=$(command -v python || command -v python3)
+          "$PY" -c "import hashlib, sys; h = hashlib.md5(open('recordings.zip', 'rb').read()).hexdigest(); print(h); sys.exit(h != '$RECORDINGS_MD5')"
+          "$PY" -m zipfile -e recordings.zip recordings
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      # On Windows these steps run in Rtools' bash, where R has no CRAN mirror set
+      - name: Install ReVAMP from CRAN
+        run: >-
+          Rscript -e 'if (getOption("repos")[["CRAN"]] %in% c("@CRAN@", ""))
+          options(repos = c(CRAN = "https://cloud.r-project.org"));
+          install.packages("ReVAMP"); cat("ReVAMP", format(packageVersion("ReVAMP")), "\n")'
+
+      - name: Native library through ReVAMP
+        env:
+          VAMP_PATH: ${{ github.workspace }}/plugins
+        run: >-
+          Rscript tests/portability/check_release.R recordings "results-revamp-${{ runner.os }}.csv"
+          "${{ runner.os }}, ReVAMP, ${{ matrix.library }} of $TAG"
+
+      - uses: actions/setup-node@v7
+        if: ${{ !cancelled() }}
+        with:
+          node-version: 24
+
+      - name: WebAssembly library through vamp-wasm in Node.js
+        if: ${{ !cancelled() }}
+        run: >-
+          node tests/portability/check_wasm.js wasm/host wasm/vamp-ecoacoustics.wasm recordings
+          "results-wasm-${{ runner.os }}.csv" "${{ runner.os }}, Node.js, vamp-ecoacoustics.wasm of $TAG"
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: results-${{ runner.os }}
+          path: results-*.csv
+
+  summary:
+    needs: check
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: results-*
+          path: results
+
+      - name: Combine the results
+        run: python3 tests/portability/summarise.py results "portability-$TAG.csv" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: portability-${{ env.TAG }}
+          path: portability-*.csv
